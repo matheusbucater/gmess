@@ -1,1 +1,1 @@
-# gry - go remember yourself
+# gry - go remind yourself
