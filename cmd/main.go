@@ -20,13 +20,11 @@ var ddl string
 
 type notificationTypeEnum int
 const (
-	single notificationTypeEnum = iota
-	// multi
+	simple notificationTypeEnum = iota
 	// recurring
 )
 var notificationTypeName = map[notificationTypeEnum]string{
-	single:    "single",
-	// multi: 	   "multi",
+	simple:    "simple",
 	// recurring: "recurring",
 }
 func (nte notificationTypeEnum) String() string {
@@ -334,7 +332,7 @@ func createSingleNotification (msgId int64, triggerAt time.Time) error {
 
 	notification, err := qtx.CreateNotification(ctx, sqlc.CreateNotificationParams{
 		MessageID: msgId,
-		Type: notificationTypeEnum.String(single),
+		Type: notificationTypeEnum.String(simple),
 	})
 	if err != nil {
 		tx.Rollback()
@@ -428,15 +426,13 @@ func showNotifications() error {
 		sb.WriteString("\"")
 
 		switch notification.Type {
-		case notificationTypeEnum.String(single):
+		case notificationTypeEnum.String(simple):
 			notification_details, err := queries.GetSingleNotificationByNotificationId(ctx, notification.ID)
 			if err != nil {
 				return err
 			}
 			sb.WriteString(" at ")
 			sb.WriteString(localizeDateTime(notification_details.TriggerAt))
-		// case notificationTypeEnum.String(multi):
-		// 	panic("TODO! Show multi notifications")
 		// case notificationTypeEnum.String(recurring):
 		// 	panic("TODO! Show recurring notifications")
 		}
@@ -468,7 +464,7 @@ func notify() error {
 	fmt.Println()
 	for _, notification := range notifications {
 		switch notification.Type {
-		case notificationTypeEnum.String(single):
+		case notificationTypeEnum.String(simple):
 			notification_details, err := queries.GetSingleNotificationByNotificationId(ctx, notification.ID)
 			if err != nil {
 				return err
@@ -480,8 +476,6 @@ func notify() error {
 				}
 				fmt.Printf("[%s] \"%s\" (%s)\n", strings.ToUpper(string(notification.Type[0])), message.Text, timeDiff.Round(time.Second))
 			}
-		// case notificationTypeEnum.String(multi):
-		// 	panic("TODO! Show multi notifications")
 		// case notificationTypeEnum.String(recurring):
 		// 	panic("TODO! Show recurring notifications")
 		}

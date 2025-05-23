@@ -16,19 +16,9 @@ CREATE TABLE notifications (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE single_notifications (
+CREATE TABLE simple_notifications (
     notification_id INTEGER PRIMARY KEY REFERENCES notifications(id) ON DELETE CASCADE,
     trigger_at TIMESTAMP NOT NULL
-);
-
-CREATE TABLE multi_notifications (
-    notification_id INTEGER PRIMARY KEY REFERENCES notifications(id) ON DELETE CASCADE
-);
-
-CREATE TABLE multi_notification_dates (
-    multi_notification_id INTEGER REFERENCES multi_notifications(id) ON DELETE CASCADE,
-    trigger_at TIMESTAMP NOT NULL,
-    PRIMARY KEY (multi_notification_id, trigger_at)
 );
 
 CREATE TABLE recurring_notifications (
@@ -44,9 +34,8 @@ CREATE TABLE recurring_notification_days (
 
 INSERT INTO features (name, seq) VALUES ('notifications', 1);
 
-INSERT INTO type_enum (type, seq) VALUES ('single', 1);
-INSERT INTO type_enum (type, seq) VALUES ('multi', 2);
-INSERT INTO type_enum (type, seq) VALUES ('recurring', 3);
+INSERT INTO type_enum (type, seq) VALUES ('simple', 1);
+INSERT INTO type_enum (type, seq) VALUES ('recurring', 2);
 
 INSERT INTO week_day_enum (week_day, seq) VALUES ('sunday', 1);
 INSERT INTO week_day_enum (week_day, seq) VALUES ('monday', 2);
