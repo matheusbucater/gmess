@@ -1,0 +1,55 @@
+ ======================
+|  MESSAGES            |
+ ======================
+| id: int pk           |
+| text: text           |
+| created_at: datetime |
+| updated_at: datetime |
+ ======================
+
+ ==============================
+|  NOTIFICATIONS               |
+ ==============================
+| id: int pk                   |
+| message_id: int fk(messages) |
+| type: *typeENUM              |
+| created_at: datetime         |
+| updated_at: datetime         |
+ ==============================
+ * typeENUM: 'single', 'multi', 'recurring'
+
+ ===========================================
+|  SINGLE_NOTIFICATIONS                     |
+ ===========================================
+| notification_id: int pk fk(notifications) |
+| trigger_at: datetime                      |
+ ===========================================
+
+ ===========================================
+|  MULTI_NOTIFICATIONS                      |
+ ===========================================
+| notification_id: int pk fk(notifications) |
+ ===========================================
+
+ =======================================================
+|  MULTI_NOTIFICATION_DATE                              |
+ =======================================================
+| multi_notification_id: int pk fk(multi_notifications) |
+| trigger_at: datetime                                  |
+ =======================================================
+
+ ===========================================
+|  RECURRING_NOTIFICATIONS                  |
+ ===========================================
+| notification_id: int pk fk(notifications) |
+| trigger_at_time: time                     |
+ ===========================================
+
+ ===============================================================
+|  RECURRING_NOTIFICATION_DAY                                   |
+ ===============================================================
+| id: int pk                                                    |
+| recurring_notification_id: int pk fk(reccuring_notifications) |
+| day_of_week: *weekDayENUM                                     |
+ ===============================================================
+ * weekDayENUM: sunday, monday, tuesday, wednesday, thursday, friday, saturday
