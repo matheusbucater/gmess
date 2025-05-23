@@ -33,6 +33,16 @@ func (nte notificationTypeEnum) String() string {
 	return notificationTypeName[nte]
 }
 
+type featureEnum int
+const (
+	notifications featureEnum = iota
+)
+var featureName = map[featureEnum]string{
+	notifications: "notifications",
+}
+func (fe featureEnum) String() string {
+	return featureName[fe]
+}
 
 func localizeDateTime(datetime time.Time) string {
 	yearReplacer := strings.NewReplacer(
