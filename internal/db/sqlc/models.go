@@ -8,9 +8,19 @@ import (
 	"time"
 )
 
+type Feature struct {
+	Name string
+	Seq  int64
+}
+
 type Message struct {
 	ID        int64
 	Text      string
 	CreatedAt time.Time
 	UpdatedAt time.Time
+}
+
+type MessagesFeature struct {
+	MessageID   int64
+	FeatureName string
 }
