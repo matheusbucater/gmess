@@ -401,6 +401,50 @@ func showNotifications() error {
 	return nil
 }
 
+func notify() error {
+	ctx := context.Background()
+	db, err := dbConnect(ctx)
+	if err != nil {
+		return err
+	}
+
+	queries := sqlc.New(db)
+
+	notifications, err := queries.GetNotifications(ctx)
+	if err != nil {
+		return err
+	}
+
+	if len(notifications) == 0 {
+		return nil
+	}
+	
+	fmt.Println()
+	for _, notification := range notifications {
+		switch notification.Type {
+		case "single":
+			notification_details, err := queries.GetSingleNotificationByNotificationId(ctx, notification.ID)
+			if err != nil {
+				return err
+			}
+			if timeDiff := notification_details.TriggerAt.Sub(time.Now()); timeDiff <= 0{
+				message, err := queries.GetMessageById(ctx, notification.MessageID)
+				if err != nil {
+					return err
+				}
+				fmt.Printf("[%s] \"%s\" (%s)\n", strings.ToUpper(string(notification.Type[0])), message.Text, timeDiff.Round(time.Second))
+			}
+		case "multi":
+			panic("TODO! Show multi notifications")
+		case "recurring":
+			panic("TODO! Show recurring notifications")
+		}
+	}
+	
+	return nil
+
+}
+
 func main() {
 	helloCmd := flag.NewFlagSet("hello", flag.ExitOnError)
 	helloNameFlag := helloCmd.String("name", "", "name to be helloed")
@@ -440,6 +484,11 @@ func main() {
 		enforceRequiredFlags(helloCmd, []string{"name"})
 
 		fmt.Printf("Hello %s!\n", *helloNameFlag)
+		err = notify()
+		if err != nil {
+			fmt.Printf("error notifying user: %s\n", err)
+			os.Exit(1)
+		}
 	case "show":
 		err := showCmd.Parse(os.Args[2:])
 		if err != nil {
