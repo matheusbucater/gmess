@@ -207,9 +207,16 @@ func showFeatures() error {
 
 	featuresCount := len(features)
 
-	fmt.Printf("%d features available\n", featuresCount)
+	var sb strings.Builder
+	sb.WriteString(strconv.Itoa(featuresCount))
+	sb.WriteString(" feature")
+	if featuresCount == 0 || featuresCount > 1 {
+		sb.WriteString("s")
+	} 
+	sb.WriteString(" available")
+	fmt.Println(sb.String())
 	for _, feat := range features {
-		fmt.Printf("\n(%d) %s\n", feat.Seq, strings.ToLower(feat.Name))
+		fmt.Printf("\n[%s] %s\n", strings.ToUpper(string(feat.Name[0])), strings.ToLower(feat.Name))
 	}
 	
 	return nil
