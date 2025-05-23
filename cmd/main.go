@@ -18,6 +18,22 @@ import (
 
 var ddl string
 
+type notificationTypeEnum int
+const (
+	single notificationTypeEnum = iota
+	// multi
+	// recurring
+)
+var notificationTypeName = map[notificationTypeEnum]string{
+	single:    "single",
+	// multi: 	   "multi",
+	// recurring: "recurring",
+}
+func (nte notificationTypeEnum) String() string {
+	return notificationTypeName[nte]
+}
+
+
 func localizeDateTime(datetime time.Time) string {
 	yearReplacer := strings.NewReplacer(
 		"January", "Janeiro",
@@ -308,7 +324,7 @@ func createSingleNotification (msgId int64, triggerAt time.Time) error {
 
 	notification, err := qtx.CreateNotification(ctx, sqlc.CreateNotificationParams{
 		MessageID: msgId,
-		Type: "single",
+		Type: notificationTypeEnum.String(single),
 	})
 	if err != nil {
 		tx.Rollback()
@@ -402,17 +418,17 @@ func showNotifications() error {
 		sb.WriteString("\"")
 
 		switch notification.Type {
-		case "single":
+		case notificationTypeEnum.String(single):
 			notification_details, err := queries.GetSingleNotificationByNotificationId(ctx, notification.ID)
 			if err != nil {
 				return err
 			}
 			sb.WriteString(" at ")
 			sb.WriteString(localizeDateTime(notification_details.TriggerAt))
-		case "multi":
-			panic("TODO! Show multi notifications")
-		case "recurring":
-			panic("TODO! Show recurring notifications")
+		// case notificationTypeEnum.String(multi):
+		// 	panic("TODO! Show multi notifications")
+		// case notificationTypeEnum.String(recurring):
+		// 	panic("TODO! Show recurring notifications")
 		}
 
 		fmt.Println(sb.String())
@@ -442,7 +458,7 @@ func notify() error {
 	fmt.Println()
 	for _, notification := range notifications {
 		switch notification.Type {
-		case "single":
+		case notificationTypeEnum.String(single):
 			notification_details, err := queries.GetSingleNotificationByNotificationId(ctx, notification.ID)
 			if err != nil {
 				return err
@@ -454,10 +470,10 @@ func notify() error {
 				}
 				fmt.Printf("[%s] \"%s\" (%s)\n", strings.ToUpper(string(notification.Type[0])), message.Text, timeDiff.Round(time.Second))
 			}
-		case "multi":
-			panic("TODO! Show multi notifications")
-		case "recurring":
-			panic("TODO! Show recurring notifications")
+		// case notificationTypeEnum.String(multi):
+		// 	panic("TODO! Show multi notifications")
+		// case notificationTypeEnum.String(recurring):
+		// 	panic("TODO! Show recurring notifications")
 		}
 	}
 	
