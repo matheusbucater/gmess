@@ -5,7 +5,7 @@ CREATE TABLE features (
 
 CREATE TABLE messages_features (
     message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
-    feature_name TEXT NOT NULL REFERENCES features(name),
+    feature_name TEXT NOT NULL REFERENCES features(name) ON DELETE CASCADE,
     PRIMARY KEY (message_id, feature_name)
 );
 

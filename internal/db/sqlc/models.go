@@ -26,15 +26,6 @@ type MessagesFeature struct {
 	FeatureName string
 }
 
-type MultiNotification struct {
-	NotificationID int64
-}
-
-type MultiNotificationDate struct {
-	MultiNotificationID sql.NullInt64
-	TriggerAt           time.Time
-}
-
 type Notification struct {
 	ID        int64
 	MessageID int64
@@ -54,7 +45,7 @@ type RecurringNotificationDay struct {
 	WeekDay                 string
 }
 
-type SingleNotification struct {
+type SimpleNotification struct {
 	NotificationID int64
 	TriggerAt      time.Time
 }

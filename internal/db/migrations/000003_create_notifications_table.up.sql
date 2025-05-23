@@ -11,7 +11,7 @@ CREATE TABLE week_day_enum (
 CREATE TABLE notifications (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
-    type TEXT NOT NULL DEFAULT ('single') REFERENCES type_enum(type),
+    type TEXT NOT NULL DEFAULT ('simple') REFERENCES type_enum(type),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

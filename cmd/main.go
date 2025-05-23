@@ -339,7 +339,7 @@ func createSingleNotification (msgId int64, triggerAt time.Time) error {
 		return err
 	}
 
-	err = qtx.CreateSingleNotification(ctx, sqlc.CreateSingleNotificationParams{
+	err = qtx.CreateSimpleNotification(ctx, sqlc.CreateSimpleNotificationParams{
 		NotificationID: notification.ID,
 		TriggerAt: triggerAt,
 	})
@@ -427,7 +427,7 @@ func showNotifications() error {
 
 		switch notification.Type {
 		case notificationTypeEnum.String(simple):
-			notification_details, err := queries.GetSingleNotificationByNotificationId(ctx, notification.ID)
+			notification_details, err := queries.GetSimpleNotificationByNotificationId(ctx, notification.ID)
 			if err != nil {
 				return err
 			}
@@ -465,7 +465,7 @@ func notify() error {
 	for _, notification := range notifications {
 		switch notification.Type {
 		case notificationTypeEnum.String(simple):
-			notification_details, err := queries.GetSingleNotificationByNotificationId(ctx, notification.ID)
+			notification_details, err := queries.GetSimpleNotificationByNotificationId(ctx, notification.ID)
 			if err != nil {
 				return err
 			}
@@ -510,8 +510,7 @@ func main() {
 	deleteIdFlag := deleteCmd.Int64("id", -1, "id of the message to be deleted")
 
 	notifyCmd := flag.NewFlagSet("notify", flag.ExitOnError)
-	notifySingleFlag := notifyCmd.Bool("single", true, "use single notification type")
-	notifyMultiFlag := notifyCmd.Bool("multi", false, "use multi notification type")
+	notifySimpleFlag := notifyCmd.Bool("simple", true, "use simple notification type")
 	notifyRecurringFlag := notifyCmd.Bool("recur", false, "use recurring notification type")
 	notifyMsgIdFlag := notifyCmd.Int64("msgId", -1, "id of the message to be notified")
 	notifyTriggerAtFlag := notifyCmd.String("triggerAt", "", "time to trigger the notification\nlayout: DD/MM/YY HH-MM-SS")
@@ -628,17 +627,12 @@ func main() {
 			fmt.Printf("error parsing cli args: %s\n", err)
 			os.Exit(1)
 		}
-
-		count := 0
-		if *notifySingleFlag { count++ }
-		if *notifyMultiFlag { count++ }
-		if *notifyRecurringFlag { count++ }
-		if count != 1 {
+		if *notifySimpleFlag && *notifyRecurringFlag {
 			fmt.Println("notification should have exactly one type.")
+			os.Exit(1)
 		}
 
-
-		if *notifySingleFlag {
+		if *notifySimpleFlag {
 			enforceRequiredFlags(notifyCmd, []string{"msgId", "triggerAt"})
 			triggerAt, err := time.Parse(triggerAtLayout, *notifyTriggerAtFlag)
 			triggerAt = time.Date(
@@ -653,17 +647,6 @@ func main() {
 			}
 			os.Exit(0)
 		}
-
-		// if *notifyMultiFlag {
-		// 	enforceRequiredFlags(notifyCmd, []string{"msgId"})
-		// 	err = createMultiNotification(*notifyMsgIdFlag)
-		// 	if err != nil {
-		// 		fmt.Printf("error creating notification: %s\n", err)
-		// 		os.Exit(1)
-		// 	}
-		// 	os.Exit(0)
-		// }
-		//
 		// if *notifyRecurringFlag {
 		// 	enforceRequiredFlags(notifyCmd, []string{"msgId"})
 		// 	err = createRecurringNotification(*notifyMsgIdFlag)

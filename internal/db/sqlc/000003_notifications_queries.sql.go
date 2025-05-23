@@ -32,17 +32,17 @@ func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotification
 	return i, err
 }
 
-const createSingleNotification = `-- name: CreateSingleNotification :exec
-INSERT INTO single_notifications (notification_id, trigger_at) VALUES (?, ?)
+const createSimpleNotification = `-- name: CreateSimpleNotification :exec
+INSERT INTO simple_notifications (notification_id, trigger_at) VALUES (?, ?)
 `
 
-type CreateSingleNotificationParams struct {
+type CreateSimpleNotificationParams struct {
 	NotificationID int64
 	TriggerAt      time.Time
 }
 
-func (q *Queries) CreateSingleNotification(ctx context.Context, arg CreateSingleNotificationParams) error {
-	_, err := q.db.ExecContext(ctx, createSingleNotification, arg.NotificationID, arg.TriggerAt)
+func (q *Queries) CreateSimpleNotification(ctx context.Context, arg CreateSimpleNotificationParams) error {
+	_, err := q.db.ExecContext(ctx, createSimpleNotification, arg.NotificationID, arg.TriggerAt)
 	return err
 }
 
@@ -79,13 +79,13 @@ func (q *Queries) GetNotifications(ctx context.Context) ([]Notification, error) 
 	return items, nil
 }
 
-const getSingleNotificationByNotificationId = `-- name: GetSingleNotificationByNotificationId :one
-SELECT notification_id, trigger_at FROM single_notifications WHERE notification_id = ?
+const getSimpleNotificationByNotificationId = `-- name: GetSimpleNotificationByNotificationId :one
+SELECT notification_id, trigger_at FROM simple_notifications WHERE notification_id = ?
 `
 
-func (q *Queries) GetSingleNotificationByNotificationId(ctx context.Context, notificationID int64) (SingleNotification, error) {
-	row := q.db.QueryRowContext(ctx, getSingleNotificationByNotificationId, notificationID)
-	var i SingleNotification
+func (q *Queries) GetSimpleNotificationByNotificationId(ctx context.Context, notificationID int64) (SimpleNotification, error) {
+	row := q.db.QueryRowContext(ctx, getSimpleNotificationByNotificationId, notificationID)
+	var i SimpleNotification
 	err := row.Scan(&i.NotificationID, &i.TriggerAt)
 	return i, err
 }
