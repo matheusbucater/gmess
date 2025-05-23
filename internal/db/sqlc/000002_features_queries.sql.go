@@ -76,3 +76,23 @@ func (q *Queries) GetFeaturesByMessageId(ctx context.Context, messageID int64) (
 	}
 	return items, nil
 }
+
+const messageHasFeature = `-- name: MessageHasFeature :one
+SELECT EXISTS(
+    SELECT 1 FROM messages_features 
+    WHERE message_id = ?
+    AND feature_name = ?
+) AS "exists"
+`
+
+type MessageHasFeatureParams struct {
+	MessageID   int64
+	FeatureName string
+}
+
+func (q *Queries) MessageHasFeature(ctx context.Context, arg MessageHasFeatureParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, messageHasFeature, arg.MessageID, arg.FeatureName)
+	var exists int64
+	err := row.Scan(&exists)
+	return exists, err
+}

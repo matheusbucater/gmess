@@ -83,7 +83,10 @@ func showMessageDetails(id int64) error {
 	queries := sqlc.New(db)
 
 	exists, err := queries.MessageExists(ctx, id)
-	if (exists == 0) {
+	if err != nil {
+		return err
+	}
+	if exists == 0 {
 		return errors.New("Invalid message ID")
 	}
 
@@ -283,7 +286,7 @@ func deleteMessage(id int64) error {
 	return nil
 }
 
-func createSingleNotification (msgId int64) error {
+func createSingleNotification (msgId int64, triggerAt time.Time) error {
 	ctx := context.Background()
 	db, err := dbConnect(ctx)
 	if err != nil {
@@ -314,11 +317,28 @@ func createSingleNotification (msgId int64) error {
 
 	err = qtx.CreateSingleNotification(ctx, sqlc.CreateSingleNotificationParams{
 		NotificationID: notification.ID,
-		TriggerAt: time.Now().Local().Add(5 * time.Minute),
+		TriggerAt: triggerAt,
 	})
 	if err != nil {
 		tx.Rollback()
 		return err
+	}
+
+	exists, err = qtx.MessageHasFeature(ctx, sqlc.MessageHasFeatureParams{
+		MessageID: msgId,
+		FeatureName: "notifications",
+	})
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if exists == 1 {
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+
+		return nil
 	}
 
 	err = qtx.CreateMessageFeature(ctx, sqlc.CreateMessageFeatureParams{
@@ -446,6 +466,9 @@ func notify() error {
 }
 
 func main() {
+	time.Local, _ = time.LoadLocation("America/Sao_Paulo")
+	triggerAtLayout := "02/01/06 15-04-05"
+
 	helloCmd := flag.NewFlagSet("hello", flag.ExitOnError)
 	helloNameFlag := helloCmd.String("name", "", "name to be helloed")
 
@@ -467,7 +490,11 @@ func main() {
 	deleteIdFlag := deleteCmd.Int64("id", -1, "id of the message to be deleted")
 
 	notifyCmd := flag.NewFlagSet("notify", flag.ExitOnError)
+	notifySingleFlag := notifyCmd.Bool("single", true, "use single notification type")
+	notifyMultiFlag := notifyCmd.Bool("multi", false, "use multi notification type")
+	notifyRecurringFlag := notifyCmd.Bool("recur", false, "use recurring notification type")
 	notifyMsgIdFlag := notifyCmd.Int64("msgId", -1, "id of the message to be notified")
+	notifyTriggerAtFlag := notifyCmd.String("triggerAt", "", "time to trigger the notification\nlayout: DD/MM/YY HH-MM-SS")
 
 	if len(os.Args) < 2 {
 		fmt.Println("expected 'hello', 'show', 'create', 'update', 'delete' or 'notify' subcommand.")
@@ -581,12 +608,51 @@ func main() {
 			fmt.Printf("error parsing cli args: %s\n", err)
 			os.Exit(1)
 		}
-		enforceRequiredFlags(notifyCmd, []string{"msgId"})
-		err = createSingleNotification(*notifyMsgIdFlag)
-		if err != nil {
-			fmt.Printf("error creating notification: %s\n", err)
-			os.Exit(1)
+
+		count := 0
+		if *notifySingleFlag { count++ }
+		if *notifyMultiFlag { count++ }
+		if *notifyRecurringFlag { count++ }
+		if count != 1 {
+			fmt.Println("notification should have exactly one type.")
 		}
+
+
+		if *notifySingleFlag {
+			enforceRequiredFlags(notifyCmd, []string{"msgId", "triggerAt"})
+			triggerAt, err := time.Parse(triggerAtLayout, *notifyTriggerAtFlag)
+			triggerAt = time.Date(
+				triggerAt.Year(), triggerAt.Month(), triggerAt.Day(), 
+				triggerAt.Hour(), triggerAt.Minute(), triggerAt.Second(),
+				0, time.Local,
+			)
+			err = createSingleNotification(*notifyMsgIdFlag, triggerAt)
+			if err != nil {
+				fmt.Printf("error creating notification: %s\n", err)
+				os.Exit(1)
+			}
+			os.Exit(0)
+		}
+
+		// if *notifyMultiFlag {
+		// 	enforceRequiredFlags(notifyCmd, []string{"msgId"})
+		// 	err = createMultiNotification(*notifyMsgIdFlag)
+		// 	if err != nil {
+		// 		fmt.Printf("error creating notification: %s\n", err)
+		// 		os.Exit(1)
+		// 	}
+		// 	os.Exit(0)
+		// }
+		//
+		// if *notifyRecurringFlag {
+		// 	enforceRequiredFlags(notifyCmd, []string{"msgId"})
+		// 	err = createRecurringNotification(*notifyMsgIdFlag)
+		// 	if err != nil {
+		// 		fmt.Printf("error creating notification: %s\n", err)
+		// 		os.Exit(1)
+		// 	}
+		// 	os.Exit(0)
+		// }
 	default:
 		fmt.Println("expected 'hello', 'show', 'create', 'update', 'delete' or 'notify' subcommand.")
 		os.Exit(1)
