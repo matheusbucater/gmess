@@ -182,7 +182,7 @@ func showMessages(order string, sort string) error {
 			sb.WriteString("]")
 		}
 		if sb.Len() != 0 {
-			fmt.Print(sb)
+			fmt.Print(sb.String())
 		}
 
 		fmt.Println()
@@ -276,6 +276,60 @@ func deleteMessage(id int64) error {
 	return nil
 }
 
+func createSingleNotification (msgId int64) error {
+	ctx := context.Background()
+	db, err := dbConnect(ctx)
+	if err != nil {
+		return err
+	}
+
+	queries := sqlc.New(db)
+
+	exists, err := queries.MessageExists(ctx, msgId)
+	if (exists == 0) {
+		return errors.New("Invalid message ID")
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	qtx := queries.WithTx(tx)
+
+	notification, err := qtx.CreateNotification(ctx, sqlc.CreateNotificationParams{
+		MessageID: msgId,
+		Type: "single",
+	})
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	err = qtx.CreateSingleNotification(ctx, sqlc.CreateSingleNotificationParams{
+		NotificationID: notification.ID,
+		TriggerAt: time.Now().Local().Add(5 * time.Minute),
+	})
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	err = qtx.CreateMessageFeature(ctx, sqlc.CreateMessageFeatureParams{
+		MessageID: msgId,
+		FeatureName: "notifications",
+	})
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func main() {
 	helloCmd := flag.NewFlagSet("hello", flag.ExitOnError)
 	helloNameFlag := helloCmd.String("name", "", "name to be helloed")
@@ -296,8 +350,11 @@ func main() {
 	deleteCmd := flag.NewFlagSet("delete", flag.ExitOnError)
 	deleteIdFlag := deleteCmd.Int64("id", -1, "id of the message to be deleted")
 
+	notifyCmd := flag.NewFlagSet("notify", flag.ExitOnError)
+	notifyMsgIdFlag := notifyCmd.Int64("msgId", -1, "id of the message to be notified")
+
 	if len(os.Args) < 2 {
-		fmt.Println("expected 'hello', 'show', 'create', 'update' or 'delete' subcommand.")
+		fmt.Println("expected 'hello', 'show', 'create', 'update', 'delete' or 'notify' subcommand.")
 		os.Exit(1)
 	}
 
@@ -388,8 +445,20 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Println("Message deleted.")
+	case "notify":
+		err := notifyCmd.Parse(os.Args[2:])
+		if err != nil {
+			fmt.Printf("error parsing cli args: %s\n", err)
+			os.Exit(1)
+		}
+		enforceRequiredFlags(notifyCmd, []string{"msgId"})
+		err = createSingleNotification(*notifyMsgIdFlag)
+		if err != nil {
+			fmt.Printf("error creating notification: %s\n", err)
+			os.Exit(1)
+		}
 	default:
-		fmt.Println("expected 'hello', 'show' or 'create' subcommand.")
+		fmt.Println("expected 'hello', 'show', 'create', 'update', 'delete' or 'notify' subcommand.")
 		os.Exit(1)
 	}
 }

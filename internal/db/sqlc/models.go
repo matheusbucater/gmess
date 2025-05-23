@@ -5,6 +5,7 @@
 package sqlc
 
 import (
+	"database/sql"
 	"time"
 )
 
@@ -23,4 +24,47 @@ type Message struct {
 type MessagesFeature struct {
 	MessageID   int64
 	FeatureName string
+}
+
+type MultiNotification struct {
+	NotificationID int64
+}
+
+type MultiNotificationDate struct {
+	MultiNotificationID sql.NullInt64
+	TriggerAt           time.Time
+}
+
+type Notification struct {
+	ID        int64
+	MessageID int64
+	Type      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+type RecurringNotification struct {
+	NotificationID int64
+	TriggerAtTime  interface{}
+}
+
+type RecurringNotificationDay struct {
+	ID                      int64
+	RecurringNotificationID int64
+	WeekDay                 string
+}
+
+type SingleNotification struct {
+	NotificationID int64
+	TriggerAt      time.Time
+}
+
+type TypeEnum struct {
+	Type string
+	Seq  sql.NullInt64
+}
+
+type WeekDayEnum struct {
+	WeekDay string
+	Seq     sql.NullInt64
 }

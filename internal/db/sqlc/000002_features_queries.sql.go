@@ -9,6 +9,20 @@ import (
 	"context"
 )
 
+const createMessageFeature = `-- name: CreateMessageFeature :exec
+INSERT INTO messages_features (message_id, feature_name) VALUES (?, ?)
+`
+
+type CreateMessageFeatureParams struct {
+	MessageID   int64
+	FeatureName string
+}
+
+func (q *Queries) CreateMessageFeature(ctx context.Context, arg CreateMessageFeatureParams) error {
+	_, err := q.db.ExecContext(ctx, createMessageFeature, arg.MessageID, arg.FeatureName)
+	return err
+}
+
 const getFeatures = `-- name: GetFeatures :many
 SELECT name, seq FROM features
 `
