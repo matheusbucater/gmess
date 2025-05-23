@@ -337,12 +337,77 @@ func createSingleNotification (msgId int64) error {
 	return nil
 }
 
+func showNotifications() error {
+	ctx := context.Background()
+	db, err := dbConnect(ctx)
+	if err != nil {
+		return err
+	}
+
+	queries := sqlc.New(db)
+
+	notifications, err := queries.GetNotifications(ctx)
+	if err != nil {
+		return err
+	}
+	
+	notificationsCount := len(notifications)
+
+	var sb strings.Builder
+	sb.WriteString("You have ")
+	sb.WriteString(strconv.Itoa(notificationsCount))
+	sb.WriteString(" notification")
+	
+	if notificationsCount <= 0 {
+		sb.WriteString("s")
+	} else if notificationsCount == 1 {
+		sb.WriteString("\n")
+	} else {
+		sb.WriteString("s\n")
+	}
+	fmt.Println(sb.String())
+
+	for _, notification := range notifications {
+		message, err := queries.GetMessageById(ctx, notification.MessageID)
+		if err != nil {
+			return err
+		}
+
+		var sb strings.Builder
+		sb.WriteString("[")
+		sb.WriteString(strings.ToUpper(string(notification.Type[0])))
+		sb.WriteString("] ")
+		sb.WriteString("\"")
+		sb.WriteString(message.Text)
+		sb.WriteString("\"")
+
+		switch notification.Type {
+		case "single":
+			notification_details, err := queries.GetSingleNotificationByNotificationId(ctx, notification.ID)
+			if err != nil {
+				return err
+			}
+			sb.WriteString(" at ")
+			sb.WriteString(localizeDateTime(notification_details.TriggerAt))
+		case "multi":
+			panic("TODO! Show multi notifications")
+		case "recurring":
+			panic("TODO! Show recurring notifications")
+		}
+
+		fmt.Println(sb.String())
+	}
+	
+	return nil
+}
+
 func main() {
 	helloCmd := flag.NewFlagSet("hello", flag.ExitOnError)
 	helloNameFlag := helloCmd.String("name", "", "name to be helloed")
 
 	showCmd := flag.NewFlagSet("show", flag.ExitOnError)
 	showFeaturesFlag := showCmd.Bool("feat", false, "show all features available")
+	showNotificationsFlag := showCmd.Bool("notif", false, "show all notifications")
 	showIdFlag := showCmd.Int64("id", -1, "specify message id to show details")
 	showOrderFlag := showCmd.String("order", "created_at", "order by: 'created_at', 'updated_at' or 'title'")
 	showDescFlag := showCmd.Bool("desc", false, "retrieve messages in descending order")
@@ -386,6 +451,15 @@ func main() {
 			err = showFeatures();
 			if err != nil {
 				fmt.Printf("error showing features: %s\n", err)
+				os.Exit(1)
+			}
+			os.Exit(0)
+		}
+
+		if *showNotificationsFlag == true {
+			err = showNotifications();
+			if err != nil {
+				fmt.Printf("error showing notifications: %s\n", err)
 				os.Exit(1)
 			}
 			os.Exit(0)

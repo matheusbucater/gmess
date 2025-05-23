@@ -78,3 +78,14 @@ func (q *Queries) GetNotifications(ctx context.Context) ([]Notification, error) 
 	}
 	return items, nil
 }
+
+const getSingleNotificationByNotificationId = `-- name: GetSingleNotificationByNotificationId :one
+SELECT notification_id, trigger_at FROM single_notifications WHERE notification_id = ?
+`
+
+func (q *Queries) GetSingleNotificationByNotificationId(ctx context.Context, notificationID int64) (SingleNotification, error) {
+	row := q.db.QueryRowContext(ctx, getSingleNotificationByNotificationId, notificationID)
+	var i SingleNotification
+	err := row.Scan(&i.NotificationID, &i.TriggerAt)
+	return i, err
+}

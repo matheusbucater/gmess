@@ -1,6 +1,9 @@
 -- name: GetNotifications :many
 SELECT * FROM notifications;
 
+-- name: GetSingleNotificationByNotificationId :one
+SELECT * FROM single_notifications WHERE notification_id = ?;
+
 -- name: CreateNotification :one
 INSERT INTO notifications (message_id, type) VALUES (?, ?) RETURNING *;
 
