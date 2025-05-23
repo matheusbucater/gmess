@@ -93,11 +93,21 @@ func showMessageDetails(id int64) error {
 
 	fmt.Println("Message details:")
 	fmt.Printf(
-		"\tid: %d\n\ttext: %s\n\tcreated_at: %s\n\tupdated_at: %s\n", 
+		"\tid: %d\n\ttext: %s\n\tcreated_at: %s\n\tupdated_at: %s", 
 		message.ID, message.Text,
 		localizeDateTime(message.CreatedAt),
 		localizeDateTime(message.UpdatedAt),
 	)
+
+	features, err := queries.GetFeaturesByMessageId(ctx, message.ID)
+	if err != nil {
+		return err
+	}
+	if len(features) != 0 {
+		fmt.Printf("\n\tfeatures: %s", strings.Join(features, ","))
+	}
+
+	fmt.Println()
 
 	return nil
 }
@@ -141,14 +151,52 @@ func showMessages(order string, sort string) error {
 		return err
 	}
 
+
 	fmt.Printf("(order by: '%s' %s)\n\n", order, sort)
 	fmt.Printf("You have %d messages:\n\n", messagesCount)
 	for _, message := range messages {
-		fmt.Printf(
-			"(%d) %s\n", 
-			message.ID,
-			message.Text,
-		)
+		features, err := queries.GetFeaturesByMessageId(ctx, message.ID)
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("(%d) %s", message.ID, message.Text)
+
+		var sb strings.Builder
+		for _, feat := range features {
+			sb.WriteString(" [")
+			sb.WriteString(strings.ToUpper(string(feat[0])))
+			sb.WriteString("]")
+		}
+		if sb.Len() != 0 {
+			fmt.Print(sb)
+		}
+
+		fmt.Println()
+	}
+	
+	return nil
+}
+
+func showFeatures() error {
+	ctx := context.Background()
+	db, err := dbConnect(ctx)
+	if err != nil {
+		return err
+	}
+
+	queries := sqlc.New(db)
+
+	features, err := queries.GetFeatures(ctx)
+	if err != nil {
+		return err
+	}
+
+	featuresCount := len(features)
+
+	fmt.Printf("%d features available\n", featuresCount)
+	for _, feat := range features {
+		fmt.Printf("\n(%d) %s\n", feat.Seq, strings.ToLower(feat.Name))
 	}
 	
 	return nil
@@ -220,6 +268,7 @@ func main() {
 	helloNameFlag := helloCmd.String("name", "", "name to be helloed")
 
 	showCmd := flag.NewFlagSet("show", flag.ExitOnError)
+	showFeaturesFlag := showCmd.Bool("feat", false, "show all features available")
 	showIdFlag := showCmd.Int64("id", -1, "specify message id to show details")
 	showOrderFlag := showCmd.String("order", "created_at", "order by: 'created_at', 'updated_at' or 'title'")
 	showDescFlag := showCmd.Bool("desc", false, "retrieve messages in descending order")
@@ -254,6 +303,15 @@ func main() {
 		if err != nil {
 			fmt.Printf("error parsing cli args: %s\n", err)
 			os.Exit(1)
+		}
+
+		if *showFeaturesFlag == true {
+			err = showFeatures();
+			if err != nil {
+				fmt.Printf("error showing features: %s\n", err)
+				os.Exit(1)
+			}
+			os.Exit(0)
 		}
 
 		if *showIdFlag != -1 {
