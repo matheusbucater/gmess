@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -146,14 +147,26 @@ func showMessages(order string, sort string) error {
 		return err
 	}
 
-	messagesCount, err := queries.CountMessages(ctx)
-	if err != nil {
-		return err
+	messagesCount := len(messages)
+
+	if messagesCount > 0 {
+		fmt.Printf("(order by: '%s' %s)\n\n", order, sort)
 	}
+	
+	var sb strings.Builder
+	sb.WriteString("You have ")
+	sb.WriteString(strconv.Itoa(messagesCount))
+	sb.WriteString(" message")
+	
+	if messagesCount <= 0 {
+		sb.WriteString("s")
+	} else if messagesCount == 1 {
+		sb.WriteString("\n")
+	} else {
+		sb.WriteString("s\n")
+	}
+	fmt.Println(sb.String())
 
-
-	fmt.Printf("(order by: '%s' %s)\n\n", order, sort)
-	fmt.Printf("You have %d messages:\n\n", messagesCount)
 	for _, message := range messages {
 		features, err := queries.GetFeaturesByMessageId(ctx, message.ID)
 		if err != nil {
