@@ -310,7 +310,7 @@ func deleteMessage(id int64) error {
 	return nil
 }
 
-func createSingleNotification (msgId int64, triggerAt time.Time) error {
+func createSimpleNotification (msgId int64, triggerAt time.Time) error {
 	ctx := context.Background()
 	db, err := dbConnect(ctx)
 	if err != nil {
@@ -487,7 +487,7 @@ func notify() error {
 
 func main() {
 	time.Local, _ = time.LoadLocation("America/Sao_Paulo")
-	triggerAtLayout := "02/01/06 15-04-05"
+	triggerAtLayout := "02/01/06 15-04-05" // "DD/MM/YY HH-MM-SS"
 
 	helloCmd := flag.NewFlagSet("hello", flag.ExitOnError)
 	helloNameFlag := helloCmd.String("name", "", "name to be helloed")
@@ -640,7 +640,7 @@ func main() {
 				triggerAt.Hour(), triggerAt.Minute(), triggerAt.Second(),
 				0, time.Local,
 			)
-			err = createSingleNotification(*notifyMsgIdFlag, triggerAt)
+			err = createSimpleNotification(*notifyMsgIdFlag, triggerAt)
 			if err != nil {
 				fmt.Printf("error creating notification: %s\n", err)
 				os.Exit(1)
