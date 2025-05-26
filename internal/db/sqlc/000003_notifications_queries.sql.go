@@ -31,6 +31,43 @@ func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotification
 	return i, err
 }
 
+const deleteNotificationById = `-- name: DeleteNotificationById :exec
+DELETE FROM notifications WHERE id = ?
+`
+
+func (q *Queries) DeleteNotificationById(ctx context.Context, id int64) error {
+	_, err := q.db.ExecContext(ctx, deleteNotificationById, id)
+	return err
+}
+
+const deleteNotificationByIdReturningMsgId = `-- name: DeleteNotificationByIdReturningMsgId :one
+DELETE FROM notifications WHERE id = ? RETURNING message_id
+`
+
+func (q *Queries) DeleteNotificationByIdReturningMsgId(ctx context.Context, id int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, deleteNotificationByIdReturningMsgId, id)
+	var message_id int64
+	err := row.Scan(&message_id)
+	return message_id, err
+}
+
+const getNotificationById = `-- name: GetNotificationById :one
+SELECT id, message_id, type, created_at, updated_at FROM notifications WHERE id = ?
+`
+
+func (q *Queries) GetNotificationById(ctx context.Context, id int64) (Notification, error) {
+	row := q.db.QueryRowContext(ctx, getNotificationById, id)
+	var i Notification
+	err := row.Scan(
+		&i.ID,
+		&i.MessageID,
+		&i.Type,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getNotifications = `-- name: GetNotifications :many
 SELECT id, message_id, type, created_at, updated_at FROM notifications
 `
@@ -62,4 +99,19 @@ func (q *Queries) GetNotifications(ctx context.Context) ([]Notification, error) 
 		return nil, err
 	}
 	return items, nil
+}
+
+const notificationExists = `-- name: NotificationExists :one
+SELECT EXISTS(
+    SELECT 1 
+    FROM notifications
+    WHERE id = ?
+) AS "exists"
+`
+
+func (q *Queries) NotificationExists(ctx context.Context, id int64) (int64, error) {
+	row := q.db.QueryRowContext(ctx, notificationExists, id)
+	var exists int64
+	err := row.Scan(&exists)
+	return exists, err
 }

@@ -24,6 +24,7 @@ type Message struct {
 type MessagesFeature struct {
 	MessageID   int64
 	FeatureName string
+	Count       int64
 }
 
 type Notification struct {

@@ -23,6 +23,34 @@ func (q *Queries) CreateMessageFeature(ctx context.Context, arg CreateMessageFea
 	return err
 }
 
+const decrementMessageFeatureCount = `-- name: DecrementMessageFeatureCount :exec
+UPDATE messages_features SET count = count - 1 WHERE message_id = ? AND feature_name = ?
+`
+
+type DecrementMessageFeatureCountParams struct {
+	MessageID   int64
+	FeatureName string
+}
+
+func (q *Queries) DecrementMessageFeatureCount(ctx context.Context, arg DecrementMessageFeatureCountParams) error {
+	_, err := q.db.ExecContext(ctx, decrementMessageFeatureCount, arg.MessageID, arg.FeatureName)
+	return err
+}
+
+const featureExists = `-- name: FeatureExists :one
+SELECT EXISTS(
+    SELECT 1 FROM features
+    WHERE name = ?
+) AS "exists"
+`
+
+func (q *Queries) FeatureExists(ctx context.Context, name string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, featureExists, name)
+	var exists int64
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const getFeatures = `-- name: GetFeatures :many
 SELECT name, seq FROM features
 `
@@ -51,22 +79,27 @@ func (q *Queries) GetFeatures(ctx context.Context) ([]Feature, error) {
 }
 
 const getFeaturesByMessageId = `-- name: GetFeaturesByMessageId :many
-SELECT feature_name FROM messages_features WHERE message_id = ?
+SELECT feature_name, count FROM messages_features WHERE message_id = ?
 `
 
-func (q *Queries) GetFeaturesByMessageId(ctx context.Context, messageID int64) ([]string, error) {
+type GetFeaturesByMessageIdRow struct {
+	FeatureName string
+	Count       int64
+}
+
+func (q *Queries) GetFeaturesByMessageId(ctx context.Context, messageID int64) ([]GetFeaturesByMessageIdRow, error) {
 	rows, err := q.db.QueryContext(ctx, getFeaturesByMessageId, messageID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []string
+	var items []GetFeaturesByMessageIdRow
 	for rows.Next() {
-		var feature_name string
-		if err := rows.Scan(&feature_name); err != nil {
+		var i GetFeaturesByMessageIdRow
+		if err := rows.Scan(&i.FeatureName, &i.Count); err != nil {
 			return nil, err
 		}
-		items = append(items, feature_name)
+		items = append(items, i)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
@@ -75,6 +108,20 @@ func (q *Queries) GetFeaturesByMessageId(ctx context.Context, messageID int64) (
 		return nil, err
 	}
 	return items, nil
+}
+
+const incrementMessageFeatureCount = `-- name: IncrementMessageFeatureCount :exec
+UPDATE messages_features SET count = count + 1 WHERE message_id = ? AND feature_name = ?
+`
+
+type IncrementMessageFeatureCountParams struct {
+	MessageID   int64
+	FeatureName string
+}
+
+func (q *Queries) IncrementMessageFeatureCount(ctx context.Context, arg IncrementMessageFeatureCountParams) error {
+	_, err := q.db.ExecContext(ctx, incrementMessageFeatureCount, arg.MessageID, arg.FeatureName)
+	return err
 }
 
 const messageHasFeature = `-- name: MessageHasFeature :one

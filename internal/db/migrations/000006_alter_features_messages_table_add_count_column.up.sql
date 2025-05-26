@@ -1,0 +1,1 @@
+ALTER TABLE messages_features ADD count INTEGER NOT NULL DEFAULT 1;
