@@ -5,7 +5,7 @@ CREATE TABLE week_day_enum (
 
 CREATE TABLE recurring_notifications (
     notification_id INTEGER PRIMARY KEY REFERENCES notifications(id) ON DELETE CASCADE,
-    trigger_at_time TIME NOT NULL
+    trigger_at_time TEXT CHECK(trigger_at_time GLOB '??-??-??')
 );
 
 CREATE TABLE recurring_notification_days (

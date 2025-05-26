@@ -36,7 +36,7 @@ type Notification struct {
 
 type RecurringNotification struct {
 	NotificationID int64
-	TriggerAtTime  interface{}
+	TriggerAtTime  sql.NullString
 }
 
 type RecurringNotificationDay struct {

@@ -97,6 +97,47 @@ func dbConnect(ctx context.Context) (*sql.DB, error) {
 	return db, nil
 }
 
+func parseWeekDays(wdString string) ([]time.Weekday, error) {
+	wdAbbrev := []string{"su","mo","tu","we","th","fr","sa"}
+	var parsedWD []time.Weekday
+
+	if len(wdString) < 2 {
+		return nil, errors.New("Invalid string " + "\"" + wdString + "\"" + ". Use \"su[sep=,]mo,tu,we,th,fr,sa\"")
+	}
+	if len(wdString) == 2 && !slices.Contains(wdAbbrev, wdString) {
+			return nil, errors.New("Invalid string " + "\"" + wdString + "\"" + ". Use \"su[sep=,]mo,tu,we,th,fr,sa\"")
+	}
+	if len(wdString) > 2 && !strings.Contains(wdString, ",") {
+		return nil, errors.New("Invalid string. Use \"su[sep=,]mo,tu,we,th,fr,sa\"")
+	}
+
+	for wd := range strings.SplitSeq(wdString, ",") {
+		if !slices.Contains(wdAbbrev, wd) {
+			return nil, errors.New("Invalid string " + "\"" + wd + "\"" + ". Use \"su[sep=,]mo,tu,we,th,fr,sa\"")
+		}
+		switch wd {
+		case "su":
+			parsedWD = append(parsedWD, time.Sunday)
+		case "mo":
+			parsedWD = append(parsedWD, time.Monday)
+		case "tu":
+			parsedWD = append(parsedWD, time.Tuesday)
+		case "we":
+			parsedWD = append(parsedWD, time.Wednesday)
+		case "th":
+			parsedWD = append(parsedWD, time.Thursday)
+		case "fr":
+			parsedWD = append(parsedWD, time.Friday)
+		case "sa":
+			parsedWD = append(parsedWD, time.Saturday)
+		default:
+			return nil, errors.New("Invalid string " + "\"" + wd + "\"" + ". Use \"su[sep=,]mo,tu,we,th,fr,sa\"")
+		}
+	}
+
+	return parsedWD, nil
+}
+
 func showMessageDetails(id int64) error {
 	ctx := context.Background()
 	db, err := dbConnect(ctx)
@@ -381,6 +422,87 @@ func createSimpleNotification (msgId int64, triggerAt time.Time) error {
 	return nil
 }
 
+func createRecurringNotification(msgId int64, weekDays []time.Weekday, triggerAt time.Time) error {
+	ctx := context.Background()
+	db, err := dbConnect(ctx)
+	if err != nil {
+		return err
+	}
+
+	queries := sqlc.New(db)
+
+	exists, err := queries.MessageExists(ctx, msgId)
+	if (exists == 0) {
+		return errors.New("Invalid message ID")
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	qtx := queries.WithTx(tx)
+
+	notification, err := qtx.CreateNotification(ctx, sqlc.CreateNotificationParams{
+		MessageID: msgId,
+		Type: notificationTypeEnum.String(recurring),
+	})
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	recurring_notification, err := qtx.CreateRecurringNotification(ctx, sqlc.CreateRecurringNotificationParams{
+		NotificationID: notification.ID,
+		TriggerAtTime: sql.NullString{String: triggerAt.Format("15-04-05"), Valid: true},
+	})
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	for _, wd := range weekDays {
+		err = qtx.CreateRecurringNotificationDay(ctx, sqlc.CreateRecurringNotificationDayParams{
+			RecurringNotificationID: recurring_notification.NotificationID,
+			WeekDay: strings.ToLower(wd.String()),
+		})
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	exists, err = qtx.MessageHasFeature(ctx, sqlc.MessageHasFeatureParams{
+		MessageID: msgId,
+		FeatureName: "notifications",
+	})
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if exists == 1 {
+		if err := tx.Commit(); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	err = qtx.CreateMessageFeature(ctx, sqlc.CreateMessageFeatureParams{
+		MessageID: msgId,
+		FeatureName: "notifications",
+	})
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func showNotifications() error {
 	ctx := context.Background()
 	db, err := dbConnect(ctx)
@@ -434,7 +556,25 @@ func showNotifications() error {
 			sb.WriteString(" at ")
 			sb.WriteString(localizeDateTime(notification_details.TriggerAt))
 		case notificationTypeEnum.String(recurring):
-			panic("TODO! Show recurring notifications")
+			notification_details, err := queries.GetRecurringNotificationByNotificationId(ctx, notification.ID)
+			if err != nil {
+				return err
+			}
+			sb.WriteString(" at ")
+			sb.WriteString(strings.ReplaceAll(notification_details.TriggerAtTime.String, "-", ":"))
+			sb.WriteString(" on ")
+
+			notification_days, err := queries.GetRecurringNotificationDaysByNotificationId(ctx, notification.ID)
+			if err != nil {
+				return err
+			}
+
+			for i, nd := range notification_days {
+				sb.WriteString(nd.WeekDay)
+				sb.WriteString("s")
+				if i == len(notification_days) - 2 { sb.WriteString(" and ") }
+				if i < len(notification_days) - 2 { sb.WriteString(", ") } 
+			}
 		}
 
 		fmt.Println(sb.String())
@@ -477,7 +617,39 @@ func notify() error {
 				fmt.Printf("[%s] \"%s\" (%s)\n", strings.ToUpper(string(notification.Type[0])), message.Text, timeDiff.Round(time.Second))
 			}
 		case notificationTypeEnum.String(recurring):
-			panic("TODO! Show recurring notifications")
+			notification_details, err := queries.GetRecurringNotificationByNotificationId(ctx, notification.ID)
+			if err != nil {
+				return err
+			}
+			exists, err := queries.RecurringNotificationHasDay(ctx, sqlc.RecurringNotificationHasDayParams{
+				RecurringNotificationID: notification.ID,
+				WeekDay: strings.ToLower(time.Now().Weekday().String()),
+			})
+			if err != nil {
+				return err
+			}
+			if exists != 1 {
+				return nil
+			}
+
+			triggerAt, err := time.Parse("15-04-05", notification_details.TriggerAtTime.String)
+			now := time.Now()
+			triggerAt = time.Date(
+				now.Year(), now.Month(), now.Day(), 
+				triggerAt.Hour(), triggerAt.Minute(), triggerAt.Second(),
+				now.Nanosecond(), now.Location(),
+			)
+			if err != nil {
+				return err
+			}
+
+			if timeDiff := triggerAt.Sub(time.Now()); timeDiff <= 0 {
+				message, err := queries.GetMessageById(ctx, notification.MessageID)
+				if err != nil {
+					return err
+				}
+				fmt.Printf("[%s] \"%s\" (%s)\n", strings.ToUpper(string(notification.Type[0])), message.Text, timeDiff.Round(time.Second))
+			}
 		}
 	}
 	
@@ -487,7 +659,8 @@ func notify() error {
 
 func main() {
 	time.Local, _ = time.LoadLocation("America/Sao_Paulo")
-	triggerAtLayout := "02/01/06 15-04-05" // "DD/MM/YY HH-MM-SS"
+	triggerAtDLayout := "02/01/06 15-04-05" // "DD/MM/YY HH-MM-SS"
+	triggerAtTLayout := "15-04-05" // "HH-MM-SS"
 
 	helloCmd := flag.NewFlagSet("hello", flag.ExitOnError)
 	helloNameFlag := helloCmd.String("name", "", "name to be helloed")
@@ -510,10 +683,11 @@ func main() {
 	deleteIdFlag := deleteCmd.Int64("id", -1, "id of the message to be deleted")
 
 	notifyCmd := flag.NewFlagSet("notify", flag.ExitOnError)
-	notifySimpleFlag := notifyCmd.Bool("simple", true, "use simple notification type")
 	notifyRecurringFlag := notifyCmd.Bool("recur", false, "use recurring notification type")
 	notifyMsgIdFlag := notifyCmd.Int64("msgId", -1, "id of the message to be notified")
-	notifyTriggerAtFlag := notifyCmd.String("triggerAt", "", "time to trigger the notification\nlayout: DD/MM/YY HH-MM-SS")
+	notifyTriggerAtDFlag := notifyCmd.String("triggerAtD", "", "date to trigger the notification\nlayout: DD/MM/YY HH-MM-SS")
+	notifyWeekDaysFlag := notifyCmd.String("weekDays", "", "week days that trigger the notification\n(su,mo,tu,we,th,fr,sa)")
+	notifyTriggerAtTFlag := notifyCmd.String("triggerAtT", "", "time to trigger the notification\nlayout: HH-MM-SS")
 
 	if len(os.Args) < 2 {
 		fmt.Println("expected 'hello', 'show', 'create', 'update', 'delete' or 'notify' subcommand.")
@@ -627,14 +801,27 @@ func main() {
 			fmt.Printf("error parsing cli args: %s\n", err)
 			os.Exit(1)
 		}
-		if *notifySimpleFlag && *notifyRecurringFlag {
-			fmt.Println("notification should have exactly one type.")
-			os.Exit(1)
-		}
-
-		if *notifySimpleFlag {
-			enforceRequiredFlags(notifyCmd, []string{"msgId", "triggerAt"})
-			triggerAt, err := time.Parse(triggerAtLayout, *notifyTriggerAtFlag)
+		if *notifyRecurringFlag {
+			enforceRequiredFlags(notifyCmd, []string{"msgId", "weekDays", "triggerAtT"})
+			weekDays, err := parseWeekDays(*notifyWeekDaysFlag)
+			if err != nil {
+				fmt.Printf("errror parsing weekDays: %s\n", err)
+			}
+			triggerAt, err := time.Parse(triggerAtTLayout, *notifyTriggerAtTFlag)
+			if err != nil {
+				fmt.Printf("errror parsing triggerAtT date: %s\n", err)
+			}
+			fmt.Println(triggerAt.String())
+			fmt.Println(weekDays)
+			err = createRecurringNotification(*notifyMsgIdFlag, weekDays, triggerAt)
+			if err != nil {
+				fmt.Printf("error creating notification: %s\n", err)
+				os.Exit(1)
+			}
+			os.Exit(0)
+		} else {
+			enforceRequiredFlags(notifyCmd, []string{"msgId", "triggerAtD"})
+			triggerAt, err := time.Parse(triggerAtDLayout, *notifyTriggerAtDFlag)
 			triggerAt = time.Date(
 				triggerAt.Year(), triggerAt.Month(), triggerAt.Day(), 
 				triggerAt.Hour(), triggerAt.Minute(), triggerAt.Second(),
