@@ -7,7 +7,6 @@ package sqlc
 
 import (
 	"context"
-	"time"
 )
 
 const createNotification = `-- name: CreateNotification :one
@@ -30,20 +29,6 @@ func (q *Queries) CreateNotification(ctx context.Context, arg CreateNotification
 		&i.UpdatedAt,
 	)
 	return i, err
-}
-
-const createSimpleNotification = `-- name: CreateSimpleNotification :exec
-INSERT INTO simple_notifications (notification_id, trigger_at) VALUES (?, ?)
-`
-
-type CreateSimpleNotificationParams struct {
-	NotificationID int64
-	TriggerAt      time.Time
-}
-
-func (q *Queries) CreateSimpleNotification(ctx context.Context, arg CreateSimpleNotificationParams) error {
-	_, err := q.db.ExecContext(ctx, createSimpleNotification, arg.NotificationID, arg.TriggerAt)
-	return err
 }
 
 const getNotifications = `-- name: GetNotifications :many
@@ -77,15 +62,4 @@ func (q *Queries) GetNotifications(ctx context.Context) ([]Notification, error) 
 		return nil, err
 	}
 	return items, nil
-}
-
-const getSimpleNotificationByNotificationId = `-- name: GetSimpleNotificationByNotificationId :one
-SELECT notification_id, trigger_at FROM simple_notifications WHERE notification_id = ?
-`
-
-func (q *Queries) GetSimpleNotificationByNotificationId(ctx context.Context, notificationID int64) (SimpleNotification, error) {
-	row := q.db.QueryRowContext(ctx, getSimpleNotificationByNotificationId, notificationID)
-	var i SimpleNotification
-	err := row.Scan(&i.NotificationID, &i.TriggerAt)
-	return i, err
 }

@@ -21,11 +21,11 @@ var ddl string
 type notificationTypeEnum int
 const (
 	simple notificationTypeEnum = iota
-	// recurring
+	recurring
 )
 var notificationTypeName = map[notificationTypeEnum]string{
 	simple:    "simple",
-	// recurring: "recurring",
+	recurring: "recurring",
 }
 func (nte notificationTypeEnum) String() string {
 	return notificationTypeName[nte]
@@ -433,8 +433,8 @@ func showNotifications() error {
 			}
 			sb.WriteString(" at ")
 			sb.WriteString(localizeDateTime(notification_details.TriggerAt))
-		// case notificationTypeEnum.String(recurring):
-		// 	panic("TODO! Show recurring notifications")
+		case notificationTypeEnum.String(recurring):
+			panic("TODO! Show recurring notifications")
 		}
 
 		fmt.Println(sb.String())
@@ -476,8 +476,8 @@ func notify() error {
 				}
 				fmt.Printf("[%s] \"%s\" (%s)\n", strings.ToUpper(string(notification.Type[0])), message.Text, timeDiff.Round(time.Second))
 			}
-		// case notificationTypeEnum.String(recurring):
-		// 	panic("TODO! Show recurring notifications")
+		case notificationTypeEnum.String(recurring):
+			panic("TODO! Show recurring notifications")
 		}
 	}
 	
