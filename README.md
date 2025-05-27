@@ -10,6 +10,6 @@ Then features will be added on top of this core concept and i will be challenged
 
 Some features i intend to implement:
 - [x] Notifications (simple and recurring)
-- [x] ToDo
+- [x] Todos
 - [ ] Groups
 - [ ] Tags
