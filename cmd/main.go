@@ -153,6 +153,204 @@ var notificationTypeName = map[notificationTypeEnum]string{
 func (nte notificationTypeEnum) String() string {
 	return notificationTypeName[nte]
 }
+
+func notify() error {
+	ctx := context.Background()
+	db, err := dbConnect(ctx)
+	if err != nil {
+		return err
+	}
+
+	queries := sqlc.New(db)
+
+	notifications, err := queries.GetNotifications(ctx)
+	if err != nil {
+		return err
+	}
+
+	if len(notifications) == 0 {
+		return nil
+	}
+	
+	fmt.Println()
+	for _, notification := range notifications {
+		switch notification.Type {
+		case notificationTypeEnum.String(e_simple_notification):
+			notification_details, err := queries.GetSimpleNotificationByNotificationId(ctx, notification.ID)
+			if err != nil {
+				return err
+			}
+			if timeDiff := notification_details.TriggerAt.Sub(time.Now()); timeDiff <= 0{
+				message, err := queries.GetMessageById(ctx, notification.MessageID)
+				if err != nil {
+					return err
+				}
+				fmt.Printf("[%s] \"%s\" (%s)\n", strings.ToUpper(string(notification.Type[0])), message.Text, timeDiff.Round(time.Second))
+			}
+		case notificationTypeEnum.String(e_recurring_notification):
+			notification_details, err := queries.GetRecurringNotificationByNotificationId(ctx, notification.ID)
+			if err != nil {
+				return err
+			}
+			exists, err := queries.RecurringNotificationHasDay(ctx, sqlc.RecurringNotificationHasDayParams{
+				RecurringNotificationID: notification.ID,
+				WeekDay: strings.ToLower(time.Now().Weekday().String()),
+			})
+			if err != nil {
+				return err
+			}
+			if exists != 1 {
+				return nil
+			}
+
+			triggerAt, err := time.Parse("15-04-05", notification_details.TriggerAtTime.String)
+			now := time.Now()
+			triggerAt = time.Date(
+				now.Year(), now.Month(), now.Day(), 
+				triggerAt.Hour(), triggerAt.Minute(), triggerAt.Second(),
+				now.Nanosecond(), now.Location(),
+			)
+			if err != nil {
+				return err
+			}
+
+			if timeDiff := triggerAt.Sub(time.Now()); timeDiff <= 0 {
+				message, err := queries.GetMessageById(ctx, notification.MessageID)
+				if err != nil {
+					return err
+				}
+				fmt.Printf("[%s] \"%s\" (%s)\n", strings.ToUpper(string(notification.Type[0])), message.Text, timeDiff.Round(time.Second))
+			}
+		}
+	}
+	return nil
+}
+
+func showNotifications() error {
+	ctx := context.Background()
+	db, err := dbConnect(ctx)
+	if err != nil {
+		return err
+	}
+
+	queries := sqlc.New(db)
+
+	notifications, err := queries.GetNotifications(ctx)
+	if err != nil {
+		return err
+	}
+	
+	notificationsCount := len(notifications)
+
+	var sb strings.Builder
+	sb.WriteString("You have ")
+	sb.WriteString(strconv.Itoa(notificationsCount))
+	sb.WriteString(" notification")
+	
+	if notificationsCount <= 0 {
+		sb.WriteString("s")
+	} else if notificationsCount == 1 {
+		sb.WriteString("\n")
+	} else {
+		sb.WriteString("s\n")
+	}
+	fmt.Println(sb.String())
+
+	for _, notification := range notifications {
+		message, err := queries.GetMessageById(ctx, notification.MessageID)
+		if err != nil {
+			return err
+		}
+
+		var sb strings.Builder
+		sb.WriteString("(")
+		sb.WriteString(fmt.Sprintf("%d", notification.ID))
+		sb.WriteString(") ")
+		sb.WriteString("\"")
+		sb.WriteString(message.Text)
+		sb.WriteString("\"")
+
+		switch notification.Type {
+		case notificationTypeEnum.String(e_simple_notification):
+			notification_details, err := queries.GetSimpleNotificationByNotificationId(ctx, notification.ID)
+			if err != nil {
+				return err
+			}
+			sb.WriteString(" at ")
+			sb.WriteString(localizeDateTime(notification_details.TriggerAt))
+		case notificationTypeEnum.String(e_recurring_notification):
+			notification_details, err := queries.GetRecurringNotificationByNotificationId(ctx, notification.ID)
+			if err != nil {
+				return err
+			}
+			sb.WriteString(" at ")
+			sb.WriteString(strings.ReplaceAll(notification_details.TriggerAtTime.String, "-", ":"))
+			sb.WriteString(" on ")
+
+			notification_days, err := queries.GetRecurringNotificationDaysByNotificationId(ctx, notification.ID)
+			if err != nil {
+				return err
+			}
+
+			for i, nd := range notification_days {
+				sb.WriteString(nd.WeekDay)
+				sb.WriteString("s")
+				if i == len(notification_days) - 2 { sb.WriteString(" and ") }
+				if i < len(notification_days) - 2 { sb.WriteString(", ") } 
+			}
+		}
+
+		sb.WriteString(" [")
+		sb.WriteString(notification.Type[:5])
+		sb.WriteString("]")
+
+		fmt.Println(sb.String())
+	}
+	
+	return nil
+}
+
+func showNotificationDetails(notId int64) error {
+	ctx := context.Background()
+	db, err := dbConnect(ctx)
+	if err != nil {
+		return err
+	}
+
+	queries := sqlc.New(db)
+
+	exists, err := queries.NotificationExists(ctx, notId)
+	if exists != 1 {
+		return errors.New("notification does not exist")
+	}
+	notification, err := queries.GetNotificationById(ctx, notId)
+	if err != nil {
+		return err
+	}
+
+	var sb strings.Builder
+	switch notification.Type {
+	case e_simple_notification.String():
+		notification_details, err := queries.GetSimpleNotificationByNotificationId(ctx, notification.ID)
+		if err != nil {
+			return err
+		}
+		sb.WriteString("\ttrigger_at: ")
+		sb.WriteString(localizeDateTime(notification_details.TriggerAt))
+	case e_recurring_notification.String():
+	}
+
+	fmt.Println("Notification details:")
+	fmt.Printf("\tid: %d\n", notification.ID)
+	fmt.Printf("\tmessage_id: %d\n", notification.MessageID)
+	fmt.Printf("\ttype: %s\n", notification.Type)
+	fmt.Println(sb.String())
+	fmt.Printf("\tcreated_at: %s\n", localizeDateTime(notification.CreatedAt))
+	fmt.Printf("\tupdated_at: %s\n", localizeDateTime(notification.UpdatedAt))
+
+	return nil
+}
+
 func createSimpleNotification (msgId int64, triggerAt time.Time) error {
 	ctx := context.Background()
 	db, err := dbConnect(ctx)
@@ -325,162 +523,6 @@ func deleteNotification(notId int64) error {
 		return err
 	}
 
-	return nil
-}
-
-func showNotifications() error {
-	ctx := context.Background()
-	db, err := dbConnect(ctx)
-	if err != nil {
-		return err
-	}
-
-	queries := sqlc.New(db)
-
-	notifications, err := queries.GetNotifications(ctx)
-	if err != nil {
-		return err
-	}
-	
-	notificationsCount := len(notifications)
-
-	var sb strings.Builder
-	sb.WriteString("You have ")
-	sb.WriteString(strconv.Itoa(notificationsCount))
-	sb.WriteString(" notification")
-	
-	if notificationsCount <= 0 {
-		sb.WriteString("s")
-	} else if notificationsCount == 1 {
-		sb.WriteString("\n")
-	} else {
-		sb.WriteString("s\n")
-	}
-	fmt.Println(sb.String())
-
-	for _, notification := range notifications {
-		message, err := queries.GetMessageById(ctx, notification.MessageID)
-		if err != nil {
-			return err
-		}
-
-		var sb strings.Builder
-		sb.WriteString("(")
-		sb.WriteString(fmt.Sprintf("%d", notification.ID))
-		sb.WriteString(") ")
-		sb.WriteString("\"")
-		sb.WriteString(message.Text)
-		sb.WriteString("\"")
-
-		switch notification.Type {
-		case notificationTypeEnum.String(e_simple_notification):
-			notification_details, err := queries.GetSimpleNotificationByNotificationId(ctx, notification.ID)
-			if err != nil {
-				return err
-			}
-			sb.WriteString(" at ")
-			sb.WriteString(localizeDateTime(notification_details.TriggerAt))
-		case notificationTypeEnum.String(e_recurring_notification):
-			notification_details, err := queries.GetRecurringNotificationByNotificationId(ctx, notification.ID)
-			if err != nil {
-				return err
-			}
-			sb.WriteString(" at ")
-			sb.WriteString(strings.ReplaceAll(notification_details.TriggerAtTime.String, "-", ":"))
-			sb.WriteString(" on ")
-
-			notification_days, err := queries.GetRecurringNotificationDaysByNotificationId(ctx, notification.ID)
-			if err != nil {
-				return err
-			}
-
-			for i, nd := range notification_days {
-				sb.WriteString(nd.WeekDay)
-				sb.WriteString("s")
-				if i == len(notification_days) - 2 { sb.WriteString(" and ") }
-				if i < len(notification_days) - 2 { sb.WriteString(", ") } 
-			}
-		}
-
-		sb.WriteString(" [")
-		sb.WriteString(notification.Type[:5])
-		sb.WriteString("]")
-
-		fmt.Println(sb.String())
-	}
-	
-	return nil
-}
-
-func notify() error {
-	ctx := context.Background()
-	db, err := dbConnect(ctx)
-	if err != nil {
-		return err
-	}
-
-	queries := sqlc.New(db)
-
-	notifications, err := queries.GetNotifications(ctx)
-	if err != nil {
-		return err
-	}
-
-	if len(notifications) == 0 {
-		return nil
-	}
-	
-	fmt.Println()
-	for _, notification := range notifications {
-		switch notification.Type {
-		case notificationTypeEnum.String(e_simple_notification):
-			notification_details, err := queries.GetSimpleNotificationByNotificationId(ctx, notification.ID)
-			if err != nil {
-				return err
-			}
-			if timeDiff := notification_details.TriggerAt.Sub(time.Now()); timeDiff <= 0{
-				message, err := queries.GetMessageById(ctx, notification.MessageID)
-				if err != nil {
-					return err
-				}
-				fmt.Printf("[%s] \"%s\" (%s)\n", strings.ToUpper(string(notification.Type[0])), message.Text, timeDiff.Round(time.Second))
-			}
-		case notificationTypeEnum.String(e_recurring_notification):
-			notification_details, err := queries.GetRecurringNotificationByNotificationId(ctx, notification.ID)
-			if err != nil {
-				return err
-			}
-			exists, err := queries.RecurringNotificationHasDay(ctx, sqlc.RecurringNotificationHasDayParams{
-				RecurringNotificationID: notification.ID,
-				WeekDay: strings.ToLower(time.Now().Weekday().String()),
-			})
-			if err != nil {
-				return err
-			}
-			if exists != 1 {
-				return nil
-			}
-
-			triggerAt, err := time.Parse("15-04-05", notification_details.TriggerAtTime.String)
-			now := time.Now()
-			triggerAt = time.Date(
-				now.Year(), now.Month(), now.Day(), 
-				triggerAt.Hour(), triggerAt.Minute(), triggerAt.Second(),
-				now.Nanosecond(), now.Location(),
-			)
-			if err != nil {
-				return err
-			}
-
-			if timeDiff := triggerAt.Sub(time.Now()); timeDiff <= 0 {
-				message, err := queries.GetMessageById(ctx, notification.MessageID)
-				if err != nil {
-					return err
-				}
-				fmt.Printf("[%s] \"%s\" (%s)\n", strings.ToUpper(string(notification.Type[0])), message.Text, timeDiff.Round(time.Second))
-			}
-		}
-	}
 	return nil
 }
 //============================================================================== 
@@ -891,9 +933,16 @@ func main() {
 				os.Exit(0)
 			}
 		case "r":
-			if err = showNotifications(); err != nil {
-				fmt.Printf("error showing notifications: %s\n", err)
-				os.Exit(1)
+			if *notifNotIdFlag != -1 {
+				if err = showNotificationDetails(*notifNotIdFlag); err != nil {
+					fmt.Printf("error showing notification details: %s\n", err)
+					os.Exit(1)
+				}
+			} else {
+				if err = showNotifications(); err != nil {
+					fmt.Printf("error showing notifications: %s\n", err)
+					os.Exit(1)
+				}
 			}
 		case "u":
 			panic("TODO")
