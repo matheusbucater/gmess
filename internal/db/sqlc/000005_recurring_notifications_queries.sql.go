@@ -40,6 +40,20 @@ func (q *Queries) CreateRecurringNotificationDay(ctx context.Context, arg Create
 	return err
 }
 
+const deleteRecurringNotificationDayByNotificationId = `-- name: DeleteRecurringNotificationDayByNotificationId :exec
+DELETE FROM recurring_notification_days WHERE recurring_notification_id = ? AND week_day = ?
+`
+
+type DeleteRecurringNotificationDayByNotificationIdParams struct {
+	RecurringNotificationID int64
+	WeekDay                 string
+}
+
+func (q *Queries) DeleteRecurringNotificationDayByNotificationId(ctx context.Context, arg DeleteRecurringNotificationDayByNotificationIdParams) error {
+	_, err := q.db.ExecContext(ctx, deleteRecurringNotificationDayByNotificationId, arg.RecurringNotificationID, arg.WeekDay)
+	return err
+}
+
 const getRecurringNotificationByNotificationId = `-- name: GetRecurringNotificationByNotificationId :one
 SELECT notification_id, trigger_at_time FROM recurring_notifications WHERE notification_id = ?
 `
@@ -52,7 +66,7 @@ func (q *Queries) GetRecurringNotificationByNotificationId(ctx context.Context, 
 }
 
 const getRecurringNotificationDaysByNotificationId = `-- name: GetRecurringNotificationDaysByNotificationId :many
-SELECT id, recurring_notification_id, week_day FROM recurring_notification_days WHERE recurring_notification_id = ?
+SELECT recurring_notification_id, week_day FROM recurring_notification_days WHERE recurring_notification_id = ?
 `
 
 func (q *Queries) GetRecurringNotificationDaysByNotificationId(ctx context.Context, recurringNotificationID int64) ([]RecurringNotificationDay, error) {
@@ -64,7 +78,7 @@ func (q *Queries) GetRecurringNotificationDaysByNotificationId(ctx context.Conte
 	var items []RecurringNotificationDay
 	for rows.Next() {
 		var i RecurringNotificationDay
-		if err := rows.Scan(&i.ID, &i.RecurringNotificationID, &i.WeekDay); err != nil {
+		if err := rows.Scan(&i.RecurringNotificationID, &i.WeekDay); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -96,4 +110,20 @@ func (q *Queries) RecurringNotificationHasDay(ctx context.Context, arg Recurring
 	var exists int64
 	err := row.Scan(&exists)
 	return exists, err
+}
+
+const updateRecurringNotification = `-- name: UpdateRecurringNotification :one
+UPDATE recurring_notifications SET trigger_at_time = ? WHERE notification_id = ? RETURNING notification_id, trigger_at_time
+`
+
+type UpdateRecurringNotificationParams struct {
+	TriggerAtTime  sql.NullString
+	NotificationID int64
+}
+
+func (q *Queries) UpdateRecurringNotification(ctx context.Context, arg UpdateRecurringNotificationParams) (RecurringNotification, error) {
+	row := q.db.QueryRowContext(ctx, updateRecurringNotification, arg.TriggerAtTime, arg.NotificationID)
+	var i RecurringNotification
+	err := row.Scan(&i.NotificationID, &i.TriggerAtTime)
+	return i, err
 }

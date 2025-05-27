@@ -41,7 +41,6 @@ type RecurringNotification struct {
 }
 
 type RecurringNotificationDay struct {
-	ID                      int64
 	RecurringNotificationID int64
 	WeekDay                 string
 }

@@ -16,3 +16,9 @@ SELECT EXISTS(
     WHERE recurring_notification_id = ?
     AND week_day = ?
 ) AS "exists";
+
+-- name: UpdateRecurringNotification :one
+UPDATE recurring_notifications SET trigger_at_time = ? WHERE notification_id = ? RETURNING *;
+
+-- name: DeleteRecurringNotificationDayByNotificationId :exec
+DELETE FROM recurring_notification_days WHERE recurring_notification_id = ? AND week_day = ?;

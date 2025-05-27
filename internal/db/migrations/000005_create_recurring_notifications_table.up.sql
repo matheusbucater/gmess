@@ -9,9 +9,9 @@ CREATE TABLE recurring_notifications (
 );
 
 CREATE TABLE recurring_notification_days (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
     recurring_notification_id INTEGER NOT NULL REFERENCES recurring_notifications(notification_id) ON DELETE CASCADE,
-    week_day TEXT NOT NULL DEFAULT ('monday') REFERENCES week_day_enum(week_day)
+    week_day TEXT NOT NULL DEFAULT ('monday') REFERENCES week_day_enum(week_day),
+    PRIMARY KEY (recurring_notification_id, week_day)
 );
 
 INSERT INTO type_enum (type, seq) VALUES ('recurring', 2);

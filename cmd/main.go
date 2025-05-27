@@ -506,6 +506,88 @@ func createRecurringNotification(msgId int64, weekDays []time.Weekday, triggerAt
 	return nil
 }
 
+func updateNotification(notId int64, triggerAt string, weekDays string) error {
+	triggerAtDLayout := "02/01/06 15-04-05" // "DD/MM/YY HH-MM-SS"
+	triggerAtTLayout := "15-04-05" // "HH-MM-SS"
+
+	ctx := context.Background()
+	db, err := dbConnect(ctx)
+	if err != nil {
+		return err
+	}
+
+	queries := sqlc.New(db)
+
+	exists, err := queries.NotificationExists(ctx, notId)
+	if err != nil { return err }
+	if exists != 1 { return errors.New("notification does not exist") }
+
+	notification, err := queries.GetNotificationById(ctx, notId)
+	if err != nil { return err }
+	
+	switch notification.Type {
+	case e_simple_notification.String():
+		if weekDays != "" { return errors.New("Invalid flag -weekDays for simple notifications.") }
+
+		triggerAt, err := time.Parse(triggerAtDLayout, triggerAt)
+		if err != nil { return err }
+		triggerAt = time.Date(
+			triggerAt.Year(), triggerAt.Month(), triggerAt.Day(), 
+			triggerAt.Hour(), triggerAt.Minute(), triggerAt.Second(),
+			0, time.Local,
+		)
+
+		if _, err := queries.UpdateSimpleNotification(ctx, sqlc.UpdateSimpleNotificationParams{
+			NotificationID: notId,
+			TriggerAt: triggerAt,
+		}); err != nil { return err }
+	case e_recurring_notification.String():
+		// TODO: allow user to update only the weekdays without having to pass the triggerAt time
+		triggerAt, err := time.Parse(triggerAtTLayout, triggerAt)
+		if err != nil { return err }
+
+		if weekDays == "" {
+			if _, err = queries.UpdateRecurringNotification(ctx, sqlc.UpdateRecurringNotificationParams{
+				NotificationID: notId,
+				TriggerAtTime: sql.NullString{String: triggerAt.Format("15-04-05"), Valid: true},
+			}); err != nil {
+				return err
+			}
+		} else {
+			weekDays, err := parseWeekDays(weekDays)
+			if err != nil { return err }
+
+			for _, wd := range []time.Weekday{
+				time.Sunday, time.Monday, time.Tuesday, time.Wednesday,
+				time.Thursday, time.Friday, time.Saturday,
+			} {
+				exists, err := queries.RecurringNotificationHasDay(ctx, sqlc.RecurringNotificationHasDayParams{
+					RecurringNotificationID: notId,
+					WeekDay: strings.ToLower(wd.String()),
+				})
+				if err != nil { return err }
+
+				if exists == 1 && !slices.Contains(weekDays, wd) {
+					if err = queries.DeleteRecurringNotificationDayByNotificationId(ctx, sqlc.DeleteRecurringNotificationDayByNotificationIdParams{
+						RecurringNotificationID: notId,
+						WeekDay: strings.ToLower(wd.String()),
+					}); err != nil { return err }
+					continue
+				}
+				if exists != 1 && slices.Contains(weekDays, wd) {
+					if err = queries.CreateRecurringNotificationDay(ctx, sqlc.CreateRecurringNotificationDayParams{
+						RecurringNotificationID: notId,
+						WeekDay: strings.ToLower(wd.String()),
+					}); err != nil { return err }
+					continue
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 func deleteNotification(notId int64) error {
 	ctx := context.Background()
 	db, err := dbConnect(ctx)
@@ -514,6 +596,10 @@ func deleteNotification(notId int64) error {
 	}
 
 	queries := sqlc.New(db)
+
+	exists, err := queries.NotificationExists(ctx, notId)
+	if err != nil { return err }
+	if exists != 1 { return errors.New("notification does not exist") }
 
 	msgId, err := queries.DeleteNotificationByIdReturningMsgId(ctx, notId)
 	if err = queries.DecrementMessageFeatureCount(ctx, sqlc.DecrementMessageFeatureCountParams{
@@ -786,9 +872,8 @@ func main() {
 	notifActionFlag := notifCmd.String("a", "r", "action:\n\t\"c\" create,\n\t\"r\" read,\n\t\"u\" update,\n\t\"d\" delete")
 	notifRecurringFlag := notifCmd.Bool("recur", false, "use recurring notification type")
 	notifMsgIdFlag := notifCmd.Int64("msgId", -1, "message id")
-	notifTriggerAtDFlag := notifCmd.String("triggerAtD", "", "date to trigger the notification\nlayout: DD/MM/YY HH-MM-SS")
+	notifTriggerAtFlag := notifCmd.String("triggerAt", "", "trigger notification at\nlayout: DD/MM/YY HH-MM-SS or HH-MM-SS")
 	notifWeekDaysFlag := notifCmd.String("weekDays", "", "week days that trigger the notification\n(su,mo,tu,we,th,fr,sa)")
-	notifTriggerAtTFlag := notifCmd.String("triggerAtT", "", "time to trigger the notification\nlayout: HH-MM-SS")
 	notifNotIdFlag := notifCmd.Int64("notId", -1, "notification id")
 
 	if len(os.Args) < 2 {
@@ -900,27 +985,25 @@ func main() {
 		switch *notifActionFlag {
 		case "c":
 			if *notifRecurringFlag == true {
-				enforceRequiredFlags(notifCmd, []string{"msgId", "weekDays", "triggerAtT"})
+				enforceRequiredFlags(notifCmd, []string{"msgId", "weekDays", "triggerAt"})
 				weekDays, err := parseWeekDays(*notifWeekDaysFlag)
 				if err != nil {
 					fmt.Printf("errror parsing weekDays: %s\n", err)
 					os.Exit(1)
 				}
-				triggerAt, err := time.Parse(triggerAtTLayout, *notifTriggerAtTFlag)
+				triggerAt, err := time.Parse(triggerAtTLayout, *notifTriggerAtFlag)
 				if err != nil {
 					fmt.Printf("errror parsing triggerAtT date: %s\n", err)
 					os.Exit(1)
 				}
-				fmt.Println(triggerAt.String())
-				fmt.Println(weekDays)
 				if err = createRecurringNotification(*notifMsgIdFlag, weekDays, triggerAt); err != nil {
 					fmt.Printf("error creating notification: %s\n", err)
 					os.Exit(1)
 				}
 				os.Exit(0)
 			} else {
-				enforceRequiredFlags(notifCmd, []string{"msgId", "triggerAtD"})
-				triggerAt, err := time.Parse(triggerAtDLayout, *notifTriggerAtDFlag)
+				enforceRequiredFlags(notifCmd, []string{"msgId", "triggerAt"})
+				triggerAt, err := time.Parse(triggerAtDLayout, *notifTriggerAtFlag)
 				triggerAt = time.Date(
 					triggerAt.Year(), triggerAt.Month(), triggerAt.Day(), 
 					triggerAt.Hour(), triggerAt.Minute(), triggerAt.Second(),
@@ -945,14 +1028,25 @@ func main() {
 				}
 			}
 		case "u":
-			panic("TODO")
+			enforceRequiredFlags(notifCmd, []string{"notId", "triggerAt"})
+			triggerAt, err := time.Parse(triggerAtDLayout, *notifTriggerAtFlag)
+			triggerAt = time.Date(
+				triggerAt.Year(), triggerAt.Month(), triggerAt.Day(), 
+				triggerAt.Hour(), triggerAt.Minute(), triggerAt.Second(),
+				0, time.Local,
+			)
+			if err = updateNotification(*notifNotIdFlag, *notifTriggerAtFlag, *notifWeekDaysFlag); err != nil {
+				fmt.Printf("errror updating notification: %s\n", err)
+				os.Exit(1)
+			}
+			fmt.Printf("notification (%d) updated\n", *notifNotIdFlag)
 		case "d":
 			enforceRequiredFlags(notifCmd, []string{"notId"})
 			if err = deleteNotification(*notifNotIdFlag); err != nil {
 				fmt.Printf("errror deleting notification: %s\n", err)
 				os.Exit(1)
 			}
-			fmt.Printf("notification [%d] deleted\n", *notifNotIdFlag)
+			fmt.Printf("notification (%d) deleted\n", *notifNotIdFlag)
 		default:
 			fmt.Printf("invalid action: %s\n", *notifActionFlag)
 			os.Exit(1)

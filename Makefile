@@ -1,13 +1,13 @@
-MIGRATE =
-MIGRATION =
+MIGRATE=
+MIGRATION=
 
 build:
 	go build -o bin/gry cmd/main.go
 
-migration:
+migration $(MIGRATION):
 	~/go/bin/migrate create -ext sql -dir internal/db/migrations -seq $(MIGRATION)
 
-migrate:
+migrate $(MIGRATE):
 	sqlite3 data/messages.db < $(MIGRATE)
 
 generate:

@@ -6,4 +6,9 @@ CREATE TABLE notifications (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE type_enum (
+    type TEXT PRIMARY KEY NOT NULL,
+    seq INTEGER
+);
+
 INSERT INTO features (name, seq) VALUES ('notifications', 1);

@@ -34,3 +34,19 @@ func (q *Queries) GetSimpleNotificationByNotificationId(ctx context.Context, not
 	err := row.Scan(&i.NotificationID, &i.TriggerAt)
 	return i, err
 }
+
+const updateSimpleNotification = `-- name: UpdateSimpleNotification :one
+UPDATE simple_notifications SET trigger_at = ? WHERE notification_id = ? RETURNING notification_id, trigger_at
+`
+
+type UpdateSimpleNotificationParams struct {
+	TriggerAt      time.Time
+	NotificationID int64
+}
+
+func (q *Queries) UpdateSimpleNotification(ctx context.Context, arg UpdateSimpleNotificationParams) (SimpleNotification, error) {
+	row := q.db.QueryRowContext(ctx, updateSimpleNotification, arg.TriggerAt, arg.NotificationID)
+	var i SimpleNotification
+	err := row.Scan(&i.NotificationID, &i.TriggerAt)
+	return i, err
+}
