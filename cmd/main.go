@@ -182,11 +182,10 @@ func createSimpleNotification (msgId int64, triggerAt time.Time) error {
 		return err
 	}
 
-	err = qtx.CreateSimpleNotification(ctx, sqlc.CreateSimpleNotificationParams{
+	if err = qtx.CreateSimpleNotification(ctx, sqlc.CreateSimpleNotificationParams{
 		NotificationID: notification.ID,
 		TriggerAt: triggerAt,
-	})
-	if err != nil {
+	}); err != nil {
 		tx.Rollback()
 		return err
 	}
@@ -211,11 +210,10 @@ func createSimpleNotification (msgId int64, triggerAt time.Time) error {
 		return nil
 	}
 
-	err = qtx.CreateMessageFeature(ctx, sqlc.CreateMessageFeatureParams{
+	if err = qtx.CreateMessageFeature(ctx, sqlc.CreateMessageFeatureParams{
 		MessageID: msgId,
 		FeatureName: "notifications",
-	})
-	if err != nil {
+	}); err != nil {
 		tx.Rollback()
 		return err
 	}
@@ -266,11 +264,10 @@ func createRecurringNotification(msgId int64, weekDays []time.Weekday, triggerAt
 	}
 
 	for _, wd := range weekDays {
-		err = qtx.CreateRecurringNotificationDay(ctx, sqlc.CreateRecurringNotificationDayParams{
+		if err = qtx.CreateRecurringNotificationDay(ctx, sqlc.CreateRecurringNotificationDayParams{
 			RecurringNotificationID: recurring_notification.NotificationID,
 			WeekDay: strings.ToLower(wd.String()),
-		})
-		if err != nil {
+		}); err != nil {
 			tx.Rollback()
 			return err
 		}
@@ -296,11 +293,10 @@ func createRecurringNotification(msgId int64, weekDays []time.Weekday, triggerAt
 		return nil
 	}
 
-	err = qtx.CreateMessageFeature(ctx, sqlc.CreateMessageFeatureParams{
+	if err = qtx.CreateMessageFeature(ctx, sqlc.CreateMessageFeatureParams{
 		MessageID: msgId,
 		FeatureName: "notifications",
-	})
-	if err != nil {
+	}); err != nil {
 		tx.Rollback()
 		return err
 	}
@@ -322,11 +318,10 @@ func deleteNotification(notId int64) error {
 	queries := sqlc.New(db)
 
 	msgId, err := queries.DeleteNotificationByIdReturningMsgId(ctx, notId)
-	err = queries.DecrementMessageFeatureCount(ctx, sqlc.DecrementMessageFeatureCountParams{
+	if err = queries.DecrementMessageFeatureCount(ctx, sqlc.DecrementMessageFeatureCountParams{
 		MessageID: msgId,
 		FeatureName: e_notifications_feature.String(),
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 
@@ -550,21 +545,21 @@ func showMessages(order string, sort string) error {
 	switch order {
 	case "created_at":
 		if sort == "ASC" {
-			messages, err = queries.GetMessagesOrderByCreatedAtASC(ctx);
+			messages, err = queries.GetMessagesOrderByCreatedAtASC(ctx)
 		} else {
-			messages, err = queries.GetMessagesOrderByCreatedAtDESC(ctx);
+			messages, err = queries.GetMessagesOrderByCreatedAtDESC(ctx)
 		}
 	case "updated_at":
 		if sort == "ASC" {
-			messages, err = queries.GetMessagesOrderByUpdatedAtASC(ctx);
+			messages, err = queries.GetMessagesOrderByUpdatedAtASC(ctx)
 		} else {
-			messages, err = queries.GetMessagesOrderByUpdatedAtDESC(ctx);
+			messages, err = queries.GetMessagesOrderByUpdatedAtDESC(ctx)
 		}
 	case "text":
 		if sort == "ASC" {
-			messages, err = queries.GetMessagesOrderByTextASC(ctx);
+			messages, err = queries.GetMessagesOrderByTextASC(ctx)
 		} else {
-			messages, err = queries.GetMessagesOrderByTextDESC(ctx);
+			messages, err = queries.GetMessagesOrderByTextDESC(ctx)
 		}
 	}
 	if err != nil {
@@ -714,8 +709,7 @@ func deleteMessage(id int64) error {
 		return errors.New("Invalid message ID")
 	}
 	
-	err = queries.DeleteMessage(ctx, id)
-	if err != nil {
+	if err = queries.DeleteMessage(ctx, id); err != nil {
 		return err
 	}
 
@@ -770,8 +764,7 @@ func main() {
 		enforceRequiredFlags(helloCmd, []string{"name"})
 
 		fmt.Printf("Hello %s!\n", *helloNameFlag)
-		err = notify()
-		if err != nil {
+		if err = notify(); err != nil {
 			fmt.Printf("error notifying user: %s\n", err)
 			os.Exit(1)
 		}
@@ -783,15 +776,13 @@ func main() {
 		}
 
 		if *showFeaturesFlag == true {
-			err = showFeatures();
-			if err != nil {
+			if err = showFeatures(); err != nil {
 				fmt.Printf("error showing features: %s\n", err)
 				os.Exit(1)
 			}
 		} else {
 			if *showIdFlag != -1 {
-				err = showMessageDetails(*showIdFlag)
-				if err != nil {
+				if err = showMessageDetails(*showIdFlag); err != nil {
 					fmt.Printf("error showing message details: %s\n", err)
 					os.Exit(1)
 				}
@@ -808,8 +799,7 @@ func main() {
 				showCmd.Usage()
 				os.Exit(1)
 			}
-			err = showMessages(strings.ToLower(*showOrderFlag), sort);
-			if err != nil {
+			if err = showMessages(strings.ToLower(*showOrderFlag), sort); err != nil {
 				fmt.Printf("error displaying messages: %s\n", err)
 				os.Exit(1)
 			}
@@ -845,14 +835,13 @@ func main() {
 			os.Exit(1)
 		}
 		enforceRequiredFlags(deleteCmd, []string{"id"})
-		err = deleteMessage(*deleteIdFlag)
-		if err != nil {
+		if err = deleteMessage(*deleteIdFlag); err != nil {
 			fmt.Printf("error deleting message: %s\n", err)
 			os.Exit(1)
 		}
 		fmt.Println("Message deleted.")
 	case "notif":
-		exists, err := featureExists(e_notifications_feature);
+		exists, err := featureExists(e_notifications_feature)
 		if err != nil {
 			fmt.Printf("error checking feature existence: %s\n", err)
 			os.Exit(1)
@@ -861,9 +850,7 @@ func main() {
 			fmt.Println("feature \"notif\" not available")
 			os.Exit(0)
 		}
-
-		err = notifCmd.Parse(os.Args[2:])
-		if err != nil {
+		if err = notifCmd.Parse(os.Args[2:]); err != nil {
 			fmt.Printf("error parsing cli args: %s\n", err)
 			os.Exit(1)
 		}
@@ -884,8 +871,7 @@ func main() {
 				}
 				fmt.Println(triggerAt.String())
 				fmt.Println(weekDays)
-				err = createRecurringNotification(*notifMsgIdFlag, weekDays, triggerAt)
-				if err != nil {
+				if err = createRecurringNotification(*notifMsgIdFlag, weekDays, triggerAt); err != nil {
 					fmt.Printf("error creating notification: %s\n", err)
 					os.Exit(1)
 				}
@@ -898,24 +884,22 @@ func main() {
 					triggerAt.Hour(), triggerAt.Minute(), triggerAt.Second(),
 					0, time.Local,
 				)
-				err = createSimpleNotification(*notifMsgIdFlag, triggerAt)
-				if err != nil {
+				if err = createSimpleNotification(*notifMsgIdFlag, triggerAt); err != nil {
 					fmt.Printf("error creating notification: %s\n", err)
 					os.Exit(1)
 				}
 				os.Exit(0)
 			}
 		case "r":
-			err = showNotifications();
-			if err != nil {
+			if err = showNotifications(); err != nil {
 				fmt.Printf("error showing notifications: %s\n", err)
 				os.Exit(1)
 			}
 		case "u":
+			panic("TODO")
 		case "d":
 			enforceRequiredFlags(notifCmd, []string{"notId"})
-			err = deleteNotification(*notifNotIdFlag)
-			if err != nil {
+			if err = deleteNotification(*notifNotIdFlag); err != nil {
 				fmt.Printf("errror deleting notification: %s\n", err)
 				os.Exit(1)
 			}
