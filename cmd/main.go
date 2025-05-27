@@ -114,29 +114,22 @@ func parseWeekDays(wdString string) ([]time.Weekday, error) {
 	return parsedWD, nil
 }
 
-
 //============================================================================== 
 // FEATURES
 //------------------------------------------------------------------------------
 type featureEnum int
 const (
 	e_notifications_feature featureEnum = iota
+	e_todos_feature 
 	e_feature_not_available
 )
 var featureName = map[featureEnum]string{
 	e_notifications_feature: "notifications",
+	e_todos_feature: "todos",
 	e_feature_not_available: "not_available",
 }
 func (fe featureEnum) String() string {
 	return featureName[fe]
-}
-func fromStringToFeature(s string) (featureEnum, error) {
-	switch strings.ToLower(s) {
-	case e_notifications_feature.String():
-		return e_notifications_feature, nil
-	default:
-		return e_feature_not_available, errors.New("Feature not available")
-	}
 }
 //------------------------------------------------------------------------------
 // Notifications
@@ -390,7 +383,7 @@ func createSimpleNotification (msgId int64, triggerAt time.Time) error {
 
 	exists, err = qtx.MessageHasFeature(ctx, sqlc.MessageHasFeatureParams{
 		MessageID: msgId,
-		FeatureName: "notifications",
+		FeatureName: e_notifications_feature.String(),
 	})
 	if err != nil {
 		tx.Rollback()
@@ -400,7 +393,7 @@ func createSimpleNotification (msgId int64, triggerAt time.Time) error {
 	if exists == 1 {
 		if err := qtx.IncrementMessageFeatureCount(ctx, sqlc.IncrementMessageFeatureCountParams{
 			MessageID: msgId,
-			FeatureName: "notifications",
+			FeatureName: e_notifications_feature.String(),
 		}); err != nil { return err }
 
 		if err := tx.Commit(); err != nil { return err }
@@ -410,7 +403,7 @@ func createSimpleNotification (msgId int64, triggerAt time.Time) error {
 
 	if err = qtx.CreateMessageFeature(ctx, sqlc.CreateMessageFeatureParams{
 		MessageID: msgId,
-		FeatureName: "notifications",
+		FeatureName: e_notifications_feature.String(),
 	}); err != nil {
 		tx.Rollback()
 		return err
@@ -473,7 +466,7 @@ func createRecurringNotification(msgId int64, weekDays []time.Weekday, triggerAt
 
 	exists, err = qtx.MessageHasFeature(ctx, sqlc.MessageHasFeatureParams{
 		MessageID: msgId,
-		FeatureName: "notifications",
+		FeatureName: e_notifications_feature.String(),
 	})
 	if err != nil {
 		tx.Rollback()
@@ -483,7 +476,7 @@ func createRecurringNotification(msgId int64, weekDays []time.Weekday, triggerAt
 	if exists == 1 {
 		if err := qtx.IncrementMessageFeatureCount(ctx, sqlc.IncrementMessageFeatureCountParams{
 			MessageID: msgId,
-			FeatureName: "notifications",
+			FeatureName: e_notifications_feature.String(),
 		}); err != nil { return err }
 
 		if err := tx.Commit(); err != nil { return err }
@@ -493,7 +486,7 @@ func createRecurringNotification(msgId int64, weekDays []time.Weekday, triggerAt
 
 	if err = qtx.CreateMessageFeature(ctx, sqlc.CreateMessageFeatureParams{
 		MessageID: msgId,
-		FeatureName: "notifications",
+		FeatureName: e_notifications_feature.String(),
 	}); err != nil {
 		tx.Rollback()
 		return err
@@ -611,9 +604,68 @@ func deleteNotification(notId int64) error {
 
 	return nil
 }
-//============================================================================== 
+//------------------------------------------------------------------------------
+// Todos
+//------------------------------------------------------------------------------
+type todoStatusEnum int
+const (
+	e_pending_status todoStatusEnum = iota
+	e_done_status
+)
+var todoStatusName = map[todoStatusEnum]string{
+	e_pending_status: "pending",
+	e_done_status: 	  "done",
+}
+func (nte todoStatusEnum) String() string {
+	return todoStatusName[nte]
+}
 
-func showMessageDetails(id int64) error {
+func showTodos() error {
+	ctx := context.Background()
+	db, err := dbConnect(ctx)
+	if err != nil { return err }
+
+	queries := sqlc.New(db)
+
+	todos, err := queries.GetTodos(ctx)
+	if err != nil { return err }
+
+	todosCount := len(todos)
+
+	var sb strings.Builder
+	sb.WriteString("You have ")
+	sb.WriteString(strconv.Itoa(todosCount))
+	sb.WriteString(" todo")
+	
+	if todosCount <= 0 {
+		sb.WriteString("s")
+	} else if todosCount == 1 {
+		sb.WriteString("\n")
+	} else {
+		sb.WriteString("s\n")
+	}
+	fmt.Println(sb.String())
+
+	sb.Reset()
+	for _, todo := range todos {
+		sb.WriteString("(")
+		sb.WriteString(fmt.Sprintf("%d", todo.ID))
+		sb.WriteString(") ")
+
+		sb.WriteString("\"")
+		message, err := queries.GetMessageById(ctx, todo.MessageID)
+		if err != nil { return err }
+		sb.WriteString(message.Text)
+		sb.WriteString("\" ")
+
+		sb.WriteString(todo.Status)
+		sb.WriteString("\n")
+	}
+	fmt.Print(sb.String())
+	return nil
+}
+
+func showTodoDetails(todId int64) error {
 	ctx := context.Background()
 	db, err := dbConnect(ctx)
 	if err != nil {
@@ -622,43 +674,133 @@ func showMessageDetails(id int64) error {
 
 	queries := sqlc.New(db)
 
-	exists, err := queries.MessageExists(ctx, id)
-	if err != nil {
-		return err
-	}
-	if exists == 0 {
-		return errors.New("Invalid message ID")
-	}
+	exists, err := queries.TodoExists(ctx, todId)
+	if err != nil { return err }
+	if exists != 1 { return errors.New("todo does not exist") }
 
-	message, err := queries.GetMessageById(ctx, id)
-	if err != nil {
-		return err
-	}
+	todo, err := queries.GetTodoById(ctx, todId)
+	if err != nil { return err }
 
-	fmt.Println("Message details:")
-	fmt.Printf(
-		"\tid: %d\n\ttext: %s\n\tcreated_at: %s\n\tupdated_at: %s", 
-		message.ID, message.Text,
-		localizeDateTime(message.CreatedAt),
-		localizeDateTime(message.UpdatedAt),
-	)
-
-	features, err := queries.GetFeaturesByMessageId(ctx, message.ID)
-	if err != nil {
-		return err
-	}
-	var sb strings.Builder
-	sb.WriteString("\n\tfeatures: ")
-	for i, feat := range features {
-		if feat.Count == 0 { break }
-		sb.WriteString(feat.FeatureName)
-		if i == len(features) - 2 { sb.WriteString(" and ") }
-		if i < len(features) - 2 { sb.WriteString(", ") } 
-	}
-	fmt.Println()
+	fmt.Println("Todo details:")
+	fmt.Printf("\tid: %d\n", todo.ID)
+	fmt.Printf("\tmessage_id: %d\n", todo.MessageID)
+	fmt.Printf("\tstatus: %s\n", todo.Status)
+	fmt.Printf("\tcreated_at: %s\n", localizeDateTime(todo.CreatedAt))
+	fmt.Printf("\tupdated_at: %s\n", localizeDateTime(todo.UpdatedAt))
 
 	return nil
 }
+
+func createTodo(msgId int64) error {
+	ctx := context.Background()
+	db, err := dbConnect(ctx)
+	if err != nil { return err }
+
+	queries := sqlc.New(db)
+
+	exists, err := queries.MessageExists(ctx, msgId)
+	if (exists == 0) {
+		return errors.New("Invalid message ID")
+	}
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	qtx := queries.WithTx(tx)
+
+	if _, err := qtx.CreateTodo(ctx, msgId); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	exists, err = qtx.MessageHasFeature(ctx, sqlc.MessageHasFeatureParams{
+		MessageID: msgId,
+		FeatureName: e_todos_feature.String(),
+	})
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if exists == 1 {
+		if err := qtx.IncrementMessageFeatureCount(ctx, sqlc.IncrementMessageFeatureCountParams{
+			MessageID: msgId,
+			FeatureName: e_todos_feature.String(),
+		}); err != nil { return err }
+
+		if err := tx.Commit(); err != nil { return err }
+
+		return nil
+	}
+
+	if err = qtx.CreateMessageFeature(ctx, sqlc.CreateMessageFeatureParams{
+		MessageID: msgId,
+		FeatureName: e_todos_feature.String(),
+	}); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func updateTodo(todId int64, status string) error {
+	ctx := context.Background()
+	db, err := dbConnect(ctx)
+	if err != nil { return err }
+
+	queries := sqlc.New(db)
+
+	exists, err := queries.TodoExists(ctx, todId)
+	if err != nil { return err }
+	if (exists == 0) { return errors.New("Invalid todo ID") }
+
+	switch status {
+	case e_pending_status.String():
+		if _, err := queries.UpdateTodoById(ctx, sqlc.UpdateTodoByIdParams{
+			ID: todId,
+			Status: e_pending_status.String(),
+		}); err != nil { return err }
+	case e_done_status.String():
+		if _, err := queries.UpdateTodoById(ctx, sqlc.UpdateTodoByIdParams{
+			ID: todId,
+			Status: e_done_status.String(),
+		}); err != nil { return err }
+	default:
+		return fmt.Errorf("Invalid -status \"%s\"", status)
+	}
+
+
+	return nil
+}
+
+func deleteTodo(todId int64) error {
+	ctx := context.Background()
+	db, err := dbConnect(ctx)
+	if err != nil { return err }
+
+	queries := sqlc.New(db)
+
+	exists, err := queries.TodoExists(ctx, todId)
+	if err != nil { return err }
+	if (exists == 0) { return errors.New("Invalid todo ID") }
+
+	msgId, err := queries.DeleteTodoByIdReturningMsgId(ctx, todId)
+	if err = queries.DecrementMessageFeatureCount(ctx, sqlc.DecrementMessageFeatureCountParams{
+		MessageID: msgId,
+		FeatureName: e_todos_feature.String(),
+	}); err != nil { return err }
+
+	if err = queries.DeleteTodoById(ctx, todId); err != nil { return err }
+
+	return nil
+}
+//============================================================================== 
 
 func showMessages(order string, sort string) error {
 	ctx := context.Background()
@@ -722,22 +864,59 @@ func showMessages(order string, sort string) error {
 
 		fmt.Printf("(%d) %s", message.ID, message.Text)
 
-		var sb strings.Builder
-		sb.WriteString(" [")
-		for i, feat := range features {
-			if feat.Count == 0 { break }
-			sb.WriteString(strings.ToLower(string(feat.FeatureName[:3])))
-			if i == len(features) - 2 { sb.WriteString(" and ") }
-			if i < len(features) - 2 { sb.WriteString(", ") } 
+		featureNames := []string{}
+		for _, feat := range features {
+			if feat.Count == 0 { continue }
+			featureNames = append(featureNames, feat.FeatureName[:3])
 		}
-		sb.WriteString("]")
-		if sb.Len() > 3 {
-			fmt.Print(sb.String())
-		}
-
-		fmt.Println()
+		fmt.Printf("[%s]\n", strings.Join(featureNames, ","))
 	}
-	
+	return nil
+}
+
+func showMessageDetails(id int64) error {
+	ctx := context.Background()
+	db, err := dbConnect(ctx)
+	if err != nil {
+		return err
+	}
+
+	queries := sqlc.New(db)
+
+	exists, err := queries.MessageExists(ctx, id)
+	if err != nil {
+		return err
+	}
+	if exists == 0 {
+		return errors.New("Invalid message ID")
+	}
+
+	message, err := queries.GetMessageById(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Message details:")
+	fmt.Printf(
+		"\tid: %d\n\ttext: %s\n\tcreated_at: %s\n\tupdated_at: %s", 
+		message.ID, message.Text,
+		localizeDateTime(message.CreatedAt),
+		localizeDateTime(message.UpdatedAt),
+	)
+
+	features, err := queries.GetFeaturesByMessageId(ctx, message.ID)
+	if err != nil {
+		return err
+	}
+	var sb strings.Builder
+	sb.WriteString("\n\tfeatures: ")
+	for i, feat := range features {
+		if feat.Count == 0 { continue }
+		sb.WriteString(feat.FeatureName)
+		if i == len(features) - 2 { sb.WriteString(" and ") }
+		if i < len(features) - 2 { sb.WriteString(", ") } 
+	}
+	fmt.Println(sb.String())
 	return nil
 }
 
@@ -776,9 +955,12 @@ func showFeatures() error {
 		sb.WriteString("s")
 	} 
 	sb.WriteString(" available")
+	if featuresCount > 0 {
+		sb.WriteString("\n")
+	}
 	fmt.Println(sb.String())
 	for _, feat := range features {
-		fmt.Printf("\n%s\n", strings.ToLower(feat.Name))
+		fmt.Printf("%s\n", strings.ToLower(feat.Name))
 	}
 	
 	return nil
@@ -875,6 +1057,12 @@ func main() {
 	notifTriggerAtFlag := notifCmd.String("triggerAt", "", "trigger notification at\nlayout: DD/MM/YY HH-MM-SS or HH-MM-SS")
 	notifWeekDaysFlag := notifCmd.String("weekDays", "", "week days that trigger the notification\n(su,mo,tu,we,th,fr,sa)")
 	notifNotIdFlag := notifCmd.Int64("notId", -1, "notification id")
+
+	todoCmd := flag.NewFlagSet("todo", flag.ExitOnError)
+	todoActionFlag := todoCmd.String("a", "r", "action:\n\t\"c\" create,\n\t\"r\" read,\n\t\"u\" update,\n\t\"d\" delete")
+	todoMsgIdFlag := todoCmd.Int64("msgId", -1, "message id")
+	todoTodIdFlag := todoCmd.Int64("todId", -1, "todo id")
+	todoStatusFlag := todoCmd.String("status", "", "todo status\n(pending,done)")
 
 	if len(os.Args) < 2 {
 		fmt.Println("expected 'hello', 'show', 'create', 'update', 'delete' or 'notify' subcommand.")
@@ -1052,6 +1240,55 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "todo":
+		exists, err := featureExists(e_todos_feature)
+		if err != nil {
+			fmt.Printf("error checking feature existence: %s\n", err)
+			os.Exit(1)
+		}
+		if !exists {
+			fmt.Println("feature \"todo\" not available")
+			os.Exit(0)
+		}
+		if err = todoCmd.Parse(os.Args[2:]); err != nil {
+			fmt.Printf("error parsing cli args: %s\n", err)
+			os.Exit(1)
+		}
+
+		switch *todoActionFlag {
+		case "c":
+			enforceRequiredFlags(todoCmd, []string{"msgId"})
+			if err := createTodo(*todoMsgIdFlag); err != nil {
+				fmt.Printf("error creating todo: %s\n", err)
+				os.Exit(1)
+			}
+		case "r":
+			if *todoTodIdFlag != -1 {
+				if err = showTodoDetails(*todoTodIdFlag); err != nil {
+					fmt.Printf("error showing todos: %s\n", err)
+					os.Exit(1)
+				}
+			} else {
+				if err = showTodos(); err != nil {
+					fmt.Printf("error showing todos: %s\n", err)
+					os.Exit(1)
+				}
+			}
+		case "u":
+			enforceRequiredFlags(todoCmd, []string{"todId", "status"})
+			if err = updateTodo(*todoTodIdFlag, *todoStatusFlag); err != nil {
+				fmt.Printf("error updating todo: %s\n", err)
+				os.Exit(1)
+			}
+			fmt.Printf("todo (%d) updated\n", *todoTodIdFlag)
+		case "d":
+			enforceRequiredFlags(todoCmd, []string{"todId"})
+			if err = deleteTodo(*todoTodIdFlag); err != nil {
+				fmt.Printf("error deleting todo: %s\n", err)
+				os.Exit(1)
+			}
+			fmt.Printf("todo (%d) deleted\n", *todoTodIdFlag)
+		}
 	default:
 		fmt.Println("expected 'hello', 'show', 'create', 'update', 'delete' or 'notify' subcommand.")
 		os.Exit(1)

@@ -50,6 +50,19 @@ type SimpleNotification struct {
 	TriggerAt      time.Time
 }
 
+type StatusEnum struct {
+	Name string
+	Seq  sql.NullInt64
+}
+
+type Todo struct {
+	ID        int64
+	MessageID int64
+	Status    string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 type TypeEnum struct {
 	Type string
 	Seq  sql.NullInt64
