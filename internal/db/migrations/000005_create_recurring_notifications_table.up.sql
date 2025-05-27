@@ -14,6 +14,8 @@ CREATE TABLE recurring_notification_days (
     week_day TEXT NOT NULL DEFAULT ('monday') REFERENCES week_day_enum(week_day)
 );
 
+INSERT INTO type_enum (type, seq) VALUES ('recurring', 2);
+
 INSERT INTO week_day_enum (week_day, seq) VALUES ('sunday', 1);
 INSERT INTO week_day_enum (week_day, seq) VALUES ('monday', 2);
 INSERT INTO week_day_enum (week_day, seq) VALUES ('tuesday', 3);

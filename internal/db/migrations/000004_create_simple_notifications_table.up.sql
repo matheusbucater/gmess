@@ -9,4 +9,3 @@ CREATE TABLE simple_notifications (
 );
 
 INSERT INTO type_enum (type, seq) VALUES ('simple', 1);
-INSERT INTO type_enum (type, seq) VALUES ('recurring', 2);
