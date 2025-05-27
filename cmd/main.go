@@ -219,7 +219,7 @@ func notify() error {
 	return nil
 }
 
-func showNotifications() error {
+func showNotifications(order string, sort string) error {
 	ctx := context.Background()
 	db, err := dbConnect(ctx)
 	if err != nil {
@@ -228,12 +228,34 @@ func showNotifications() error {
 
 	queries := sqlc.New(db)
 
-	notifications, err := queries.GetNotifications(ctx)
-	if err != nil {
-		return err
+	notifications := []sqlc.Notification{}
+	switch order {
+	case "created_at":
+		if sort == "ASC" {
+			notifications, err = queries.GetNotificationsOrderByCreatedAtASC(ctx)
+		} else {
+			notifications, err = queries.GetNotificationsOrderByCreatedAtDESC(ctx)
+		}
+	case "updated_at":
+		if sort == "ASC" {
+			notifications, err = queries.GetNotificationsOrderByUpdatedAtASC(ctx)
+		} else {
+			notifications, err = queries.GetNotificationsOrderByUpdatedAtDESC(ctx)
+		}
+	case "type":
+		if sort == "ASC" {
+			notifications, err = queries.GetNotificationsOrderByTypeASC(ctx)
+		} else {
+			notifications, err = queries.GetNotificationsOrderByTypeDESC(ctx)
+		}
 	}
+	if err != nil { return err }
 	
 	notificationsCount := len(notifications)
+
+	if notificationsCount> 0 {
+		fmt.Printf("(order by: '%s' %s)\n\n", order, sort)
+	}
 
 	var sb strings.Builder
 	sb.WriteString("You have ")
@@ -620,17 +642,41 @@ func (nte todoStatusEnum) String() string {
 	return todoStatusName[nte]
 }
 
-func showTodos() error {
+func showTodos(order string, sort string) error {
 	ctx := context.Background()
 	db, err := dbConnect(ctx)
 	if err != nil { return err }
 
 	queries := sqlc.New(db)
-
-	todos, err := queries.GetTodos(ctx)
+	
+	todos := []sqlc.Todo{}
+	switch order {
+	case "created_at":
+		if sort == "ASC" {
+			todos, err = queries.GetTodosOrderByCreatedAtASC(ctx)
+		} else {
+			todos, err = queries.GetTodosOrderByCreatedAtDESC(ctx)
+		}
+	case "updated_at":
+		if sort == "ASC" {
+			todos, err = queries.GetTodosOrderByUpdatedAtASC(ctx)
+		} else {
+			todos, err = queries.GetTodosOrderByUpdatedAtDESC(ctx)
+		}
+	case "status":
+		if sort == "ASC" {
+			todos, err = queries.GetTodosOrderByStatusASC(ctx)
+		} else {
+			todos, err = queries.GetTodosOrderByStatusDESC(ctx)
+		}
+	}
 	if err != nil { return err }
-
+	
 	todosCount := len(todos)
+
+	if todosCount > 0 {
+		fmt.Printf("(order by: '%s' %s)\n\n", order, sort)
+	}
 
 	var sb strings.Builder
 	sb.WriteString("You have ")
@@ -1057,12 +1103,17 @@ func main() {
 	notifTriggerAtFlag := notifCmd.String("triggerAt", "", "trigger notification at\nlayout: DD/MM/YY HH-MM-SS or HH-MM-SS")
 	notifWeekDaysFlag := notifCmd.String("weekDays", "", "week days that trigger the notification\n(su,mo,tu,we,th,fr,sa)")
 	notifNotIdFlag := notifCmd.Int64("notId", -1, "notification id")
+	// TODO: add support to order by trigger_at
+	notifOrderFlag := notifCmd.String("order", "created_at", "order by: 'created_at', 'updated_at' or 'type'")
+	notifDescFlag := notifCmd.Bool("desc", false, "retrieve notifications in descending order")
 
 	todoCmd := flag.NewFlagSet("todo", flag.ExitOnError)
 	todoActionFlag := todoCmd.String("a", "r", "action:\n\t\"c\" create,\n\t\"r\" read,\n\t\"u\" update,\n\t\"d\" delete")
 	todoMsgIdFlag := todoCmd.Int64("msgId", -1, "message id")
 	todoTodIdFlag := todoCmd.Int64("todId", -1, "todo id")
 	todoStatusFlag := todoCmd.String("status", "", "todo status\n(pending,done)")
+	todoOrderFlag := todoCmd.String("order", "created_at", "order by: 'created_at', 'updated_at' or 'status'")
+	todoDescFlag := todoCmd.Bool("desc", false, "retrieve todos in descending order")
 
 	if len(os.Args) < 2 {
 		fmt.Println("expected 'hello', 'show', 'create', 'update', 'delete' or 'notify' subcommand.")
@@ -1102,22 +1153,23 @@ func main() {
 					os.Exit(1)
 				}
 				os.Exit(0)
+			} else {
+				sort := "ASC"
+				if *showDescFlag == true {
+					sort = "DESC"
+				}
+
+				if !slices.Contains([]string{"created_at", "updated_at", "text"}, strings.ToLower(*showOrderFlag)) {
+					fmt.Println("invalid value for '-order' flag")
+					showCmd.Usage()
+					os.Exit(1)
+				}
+				if err = showMessages(strings.ToLower(*showOrderFlag), sort); err != nil {
+					fmt.Printf("error displaying messages: %s\n", err)
+					os.Exit(1)
+				}
 			}
 
-			sort := "ASC"
-			if *showDescFlag == true {
-				sort = "DESC"
-			}
-
-			if !slices.Contains([]string{"created_at", "updated_at", "text"}, strings.ToLower(*showOrderFlag)) {
-				fmt.Println("invalid value for '-order' flag")
-				showCmd.Usage()
-				os.Exit(1)
-			}
-			if err = showMessages(strings.ToLower(*showOrderFlag), sort); err != nil {
-				fmt.Printf("error displaying messages: %s\n", err)
-				os.Exit(1)
-			}
 		}
 	case "create":
 		err := createCmd.Parse(os.Args[2:])
@@ -1210,7 +1262,17 @@ func main() {
 					os.Exit(1)
 				}
 			} else {
-				if err = showNotifications(); err != nil {
+				sort := "ASC"
+				if *notifDescFlag == true {
+					sort = "DESC"
+				}
+
+				if !slices.Contains([]string{"created_at", "updated_at", "type"}, strings.ToLower(*notifOrderFlag)) {
+					fmt.Println("invalid value for '-order' flag")
+					notifCmd.Usage()
+					os.Exit(1)
+				}
+				if err = showNotifications(strings.ToLower(*notifOrderFlag), sort); err != nil {
 					fmt.Printf("error showing notifications: %s\n", err)
 					os.Exit(1)
 				}
@@ -1269,7 +1331,17 @@ func main() {
 					os.Exit(1)
 				}
 			} else {
-				if err = showTodos(); err != nil {
+				sort := "ASC"
+				if *todoDescFlag == true {
+					sort = "DESC"
+				}
+
+				if !slices.Contains([]string{"created_at", "updated_at", "status"}, strings.ToLower(*todoOrderFlag)) {
+					fmt.Println("invalid value for '-order' flag")
+					todoCmd.Usage()
+					os.Exit(1)
+				}
+				if err = showTodos(strings.ToLower(*todoOrderFlag), sort); err != nil {
 					fmt.Printf("error showing todos: %s\n", err)
 					os.Exit(1)
 				}

@@ -101,6 +101,204 @@ func (q *Queries) GetNotifications(ctx context.Context) ([]Notification, error) 
 	return items, nil
 }
 
+const getNotificationsOrderByCreatedAtASC = `-- name: GetNotificationsOrderByCreatedAtASC :many
+SELECT id, message_id, type, created_at, updated_at FROM notifications ORDER BY created_at ASC
+`
+
+func (q *Queries) GetNotificationsOrderByCreatedAtASC(ctx context.Context) ([]Notification, error) {
+	rows, err := q.db.QueryContext(ctx, getNotificationsOrderByCreatedAtASC)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Notification
+	for rows.Next() {
+		var i Notification
+		if err := rows.Scan(
+			&i.ID,
+			&i.MessageID,
+			&i.Type,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getNotificationsOrderByCreatedAtDESC = `-- name: GetNotificationsOrderByCreatedAtDESC :many
+SELECT id, message_id, type, created_at, updated_at FROM notifications ORDER BY created_at DESC
+`
+
+func (q *Queries) GetNotificationsOrderByCreatedAtDESC(ctx context.Context) ([]Notification, error) {
+	rows, err := q.db.QueryContext(ctx, getNotificationsOrderByCreatedAtDESC)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Notification
+	for rows.Next() {
+		var i Notification
+		if err := rows.Scan(
+			&i.ID,
+			&i.MessageID,
+			&i.Type,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getNotificationsOrderByTypeASC = `-- name: GetNotificationsOrderByTypeASC :many
+SELECT id, message_id, type, created_at, updated_at FROM notifications ORDER BY type ASC
+`
+
+func (q *Queries) GetNotificationsOrderByTypeASC(ctx context.Context) ([]Notification, error) {
+	rows, err := q.db.QueryContext(ctx, getNotificationsOrderByTypeASC)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Notification
+	for rows.Next() {
+		var i Notification
+		if err := rows.Scan(
+			&i.ID,
+			&i.MessageID,
+			&i.Type,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getNotificationsOrderByTypeDESC = `-- name: GetNotificationsOrderByTypeDESC :many
+SELECT id, message_id, type, created_at, updated_at FROM notifications ORDER BY type DESC
+`
+
+func (q *Queries) GetNotificationsOrderByTypeDESC(ctx context.Context) ([]Notification, error) {
+	rows, err := q.db.QueryContext(ctx, getNotificationsOrderByTypeDESC)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Notification
+	for rows.Next() {
+		var i Notification
+		if err := rows.Scan(
+			&i.ID,
+			&i.MessageID,
+			&i.Type,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getNotificationsOrderByUpdatedAtASC = `-- name: GetNotificationsOrderByUpdatedAtASC :many
+SELECT id, message_id, type, created_at, updated_at FROM notifications ORDER BY updated_at ASC
+`
+
+func (q *Queries) GetNotificationsOrderByUpdatedAtASC(ctx context.Context) ([]Notification, error) {
+	rows, err := q.db.QueryContext(ctx, getNotificationsOrderByUpdatedAtASC)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Notification
+	for rows.Next() {
+		var i Notification
+		if err := rows.Scan(
+			&i.ID,
+			&i.MessageID,
+			&i.Type,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getNotificationsOrderByUpdatedAtDESC = `-- name: GetNotificationsOrderByUpdatedAtDESC :many
+SELECT id, message_id, type, created_at, updated_at FROM notifications ORDER BY updated_at DESC
+`
+
+func (q *Queries) GetNotificationsOrderByUpdatedAtDESC(ctx context.Context) ([]Notification, error) {
+	rows, err := q.db.QueryContext(ctx, getNotificationsOrderByUpdatedAtDESC)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Notification
+	for rows.Next() {
+		var i Notification
+		if err := rows.Scan(
+			&i.ID,
+			&i.MessageID,
+			&i.Type,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const notificationExists = `-- name: NotificationExists :one
 SELECT EXISTS(
     SELECT 1 

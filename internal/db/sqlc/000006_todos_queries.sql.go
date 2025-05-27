@@ -122,6 +122,204 @@ func (q *Queries) GetTodos(ctx context.Context) ([]Todo, error) {
 	return items, nil
 }
 
+const getTodosOrderByCreatedAtASC = `-- name: GetTodosOrderByCreatedAtASC :many
+SELECT id, message_id, status, created_at, updated_at FROM todos ORDER BY created_at ASC
+`
+
+func (q *Queries) GetTodosOrderByCreatedAtASC(ctx context.Context) ([]Todo, error) {
+	rows, err := q.db.QueryContext(ctx, getTodosOrderByCreatedAtASC)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Todo
+	for rows.Next() {
+		var i Todo
+		if err := rows.Scan(
+			&i.ID,
+			&i.MessageID,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTodosOrderByCreatedAtDESC = `-- name: GetTodosOrderByCreatedAtDESC :many
+SELECT id, message_id, status, created_at, updated_at FROM todos ORDER BY created_at DESC
+`
+
+func (q *Queries) GetTodosOrderByCreatedAtDESC(ctx context.Context) ([]Todo, error) {
+	rows, err := q.db.QueryContext(ctx, getTodosOrderByCreatedAtDESC)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Todo
+	for rows.Next() {
+		var i Todo
+		if err := rows.Scan(
+			&i.ID,
+			&i.MessageID,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTodosOrderByStatusASC = `-- name: GetTodosOrderByStatusASC :many
+SELECT id, message_id, status, created_at, updated_at FROM todos ORDER BY status ASC
+`
+
+func (q *Queries) GetTodosOrderByStatusASC(ctx context.Context) ([]Todo, error) {
+	rows, err := q.db.QueryContext(ctx, getTodosOrderByStatusASC)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Todo
+	for rows.Next() {
+		var i Todo
+		if err := rows.Scan(
+			&i.ID,
+			&i.MessageID,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTodosOrderByStatusDESC = `-- name: GetTodosOrderByStatusDESC :many
+SELECT id, message_id, status, created_at, updated_at FROM todos ORDER BY status DESC
+`
+
+func (q *Queries) GetTodosOrderByStatusDESC(ctx context.Context) ([]Todo, error) {
+	rows, err := q.db.QueryContext(ctx, getTodosOrderByStatusDESC)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Todo
+	for rows.Next() {
+		var i Todo
+		if err := rows.Scan(
+			&i.ID,
+			&i.MessageID,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTodosOrderByUpdatedAtASC = `-- name: GetTodosOrderByUpdatedAtASC :many
+SELECT id, message_id, status, created_at, updated_at FROM todos ORDER BY updated_at ASC
+`
+
+func (q *Queries) GetTodosOrderByUpdatedAtASC(ctx context.Context) ([]Todo, error) {
+	rows, err := q.db.QueryContext(ctx, getTodosOrderByUpdatedAtASC)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Todo
+	for rows.Next() {
+		var i Todo
+		if err := rows.Scan(
+			&i.ID,
+			&i.MessageID,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTodosOrderByUpdatedAtDESC = `-- name: GetTodosOrderByUpdatedAtDESC :many
+SELECT id, message_id, status, created_at, updated_at FROM todos ORDER BY updated_at DESC
+`
+
+func (q *Queries) GetTodosOrderByUpdatedAtDESC(ctx context.Context) ([]Todo, error) {
+	rows, err := q.db.QueryContext(ctx, getTodosOrderByUpdatedAtDESC)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Todo
+	for rows.Next() {
+		var i Todo
+		if err := rows.Scan(
+			&i.ID,
+			&i.MessageID,
+			&i.Status,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const todoExists = `-- name: TodoExists :one
 SELECT EXISTS(
     SELECT 1 FROM todos 

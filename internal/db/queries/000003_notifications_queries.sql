@@ -1,6 +1,24 @@
 -- name: GetNotifications :many
 SELECT * FROM notifications;
 
+-- name: GetNotificationsOrderByCreatedAtASC :many
+SELECT * FROM notifications ORDER BY created_at ASC;
+
+-- name: GetNotificationsOrderByCreatedAtDESC :many
+SELECT * FROM notifications ORDER BY created_at DESC;
+
+-- name: GetNotificationsOrderByUpdatedAtASC :many
+SELECT * FROM notifications ORDER BY updated_at ASC;
+
+-- name: GetNotificationsOrderByUpdatedAtDESC :many
+SELECT * FROM notifications ORDER BY updated_at DESC;
+
+-- name: GetNotificationsOrderByTypeASC :many
+SELECT * FROM notifications ORDER BY type ASC;
+
+-- name: GetNotificationsOrderByTypeDESC :many
+SELECT * FROM notifications ORDER BY type DESC;
+
 -- name: CreateNotification :one
 INSERT INTO notifications (message_id, type) VALUES (?, ?) RETURNING *;
 

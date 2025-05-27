@@ -1,6 +1,24 @@
 -- name: GetTodos :many
 SELECT * FROM todos;
 
+-- name: GetTodosOrderByCreatedAtASC :many
+SELECT * FROM todos ORDER BY created_at ASC;
+
+-- name: GetTodosOrderByCreatedAtDESC :many
+SELECT * FROM todos ORDER BY created_at DESC;
+
+-- name: GetTodosOrderByUpdatedAtASC :many
+SELECT * FROM todos ORDER BY updated_at ASC;
+
+-- name: GetTodosOrderByUpdatedAtDESC :many
+SELECT * FROM todos ORDER BY updated_at DESC;
+
+-- name: GetTodosOrderByStatusASC :many
+SELECT * FROM todos ORDER BY status ASC;
+
+-- name: GetTodosOrderByStatusDESC :many
+SELECT * FROM todos ORDER BY status DESC;
+
 -- name: GetTodoById :one
 SELECT * FROM todos WHERE id = ?;
 
