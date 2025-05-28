@@ -13,6 +13,8 @@ import (
 
 	"github.com/matheusbucater/gmess/internal/db/sqlc"
 	"github.com/matheusbucater/gmess/internal/feat"
+	"github.com/matheusbucater/gmess/internal/feat/notifications"
+	"github.com/matheusbucater/gmess/internal/feat/todos"
 	"github.com/matheusbucater/gmess/internal/utils"
 
 	_ "modernc.org/sqlite"
@@ -263,9 +265,15 @@ func main() {
 			os.Exit(1)
 		}
 
-		if err := feat.HandleCmd(os.Args[1], os.Args[2:]); err != nil {
-			fmt.Printf("error handling feature command: %s\n", err)
+		switch os.Args[1] {
+		case feat.E_notifications_feature.String():
+			notifications.Cmd(os.Args[2:])
+		case feat.E_todos_feature.String():
+			todos.Cmd(os.Args[2:])
+		default:
+			fmt.Println("Invalid command")
 			os.Exit(1)
 		}
 	}
 }
+

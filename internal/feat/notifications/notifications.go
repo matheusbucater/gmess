@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/matheusbucater/gmess/internal/db/sqlc"
-	// "github.com/matheusbucater/gmess/internal/feat"
+	"github.com/matheusbucater/gmess/internal/feat"
 	"github.com/matheusbucater/gmess/internal/utils"
 )
 
@@ -298,8 +298,7 @@ func createSimpleNotification (msgId int64, triggerAt time.Time) error {
 
 	exists, err = qtx.MessageHasFeature(ctx, sqlc.MessageHasFeatureParams{
 		MessageID: msgId,
-		// FeatureName: feat.E_notifications_feature.String(), 
-		FeatureName: "notification", // TODO: fix this mess
+		FeatureName: feat.E_notifications_feature.String(), 
 	})
 	if err != nil {
 		tx.Rollback()
@@ -309,8 +308,7 @@ func createSimpleNotification (msgId int64, triggerAt time.Time) error {
 	if exists == 1 {
 		if err := qtx.IncrementMessageFeatureCount(ctx, sqlc.IncrementMessageFeatureCountParams{
 			MessageID: msgId,
-			// FeatureName: feat.E_notifications_feature.String(), 
-			FeatureName: "notification", // TODO: fix this mess
+			FeatureName: feat.E_notifications_feature.String(), 
 		}); err != nil { return err }
 
 		if err := tx.Commit(); err != nil { return err }
@@ -320,8 +318,7 @@ func createSimpleNotification (msgId int64, triggerAt time.Time) error {
 
 	if err = qtx.CreateMessageFeature(ctx, sqlc.CreateMessageFeatureParams{
 		MessageID: msgId,
-		// FeatureName: feat.E_notifications_feature.String(), 
-		FeatureName: "notification", // TODO: fix this mess
+		FeatureName: feat.E_notifications_feature.String(), 
 	}); err != nil {
 		tx.Rollback()
 		return err
@@ -384,8 +381,7 @@ func createRecurringNotification(msgId int64, weekDays []time.Weekday, triggerAt
 
 	exists, err = qtx.MessageHasFeature(ctx, sqlc.MessageHasFeatureParams{
 		MessageID: msgId,
-		// FeatureName: feat.E_notifications_feature.String(), 
-		FeatureName: "notification", // TODO: fix this mess
+		FeatureName: feat.E_notifications_feature.String(), 
 	})
 	if err != nil {
 		tx.Rollback()
@@ -395,8 +391,7 @@ func createRecurringNotification(msgId int64, weekDays []time.Weekday, triggerAt
 	if exists == 1 {
 		if err := qtx.IncrementMessageFeatureCount(ctx, sqlc.IncrementMessageFeatureCountParams{
 			MessageID: msgId,
-			// FeatureName: feat.E_notifications_feature.String(), 
-			FeatureName: "notification", // TODO: fix this mess
+			FeatureName: feat.E_notifications_feature.String(), 
 		}); err != nil { return err }
 
 		if err := tx.Commit(); err != nil { return err }
@@ -406,8 +401,7 @@ func createRecurringNotification(msgId int64, weekDays []time.Weekday, triggerAt
 
 	if err = qtx.CreateMessageFeature(ctx, sqlc.CreateMessageFeatureParams{
 		MessageID: msgId,
-		// FeatureName: feat.E_notifications_feature.String(), 
-		FeatureName: "notification", // TODO: fix this mess
+		FeatureName: feat.E_notifications_feature.String(), 
 	}); err != nil {
 		tx.Rollback()
 		return err
@@ -518,8 +512,7 @@ func deleteNotification(notId int64) error {
 	msgId, err := queries.DeleteNotificationByIdReturningMsgId(ctx, notId)
 	if err = queries.DecrementMessageFeatureCount(ctx, sqlc.DecrementMessageFeatureCountParams{
 		MessageID: msgId,
-		// FeatureName: feat.E_notifications_feature.String(), 
-		FeatureName: "notification", // TODO: fix this mess
+		FeatureName: feat.E_notifications_feature.String(), 
 	}); err != nil {
 		return err
 	}

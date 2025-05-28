@@ -2,14 +2,11 @@ package feat
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/matheusbucater/gmess/internal/db/sqlc"
-	"github.com/matheusbucater/gmess/internal/feat/notifications"
-	"github.com/matheusbucater/gmess/internal/feat/todos"
 	"github.com/matheusbucater/gmess/internal/utils"
 )
 
@@ -74,16 +71,3 @@ func ShowFeatures() error {
 	return nil
 }
 
-func HandleCmd(feat string, args []string) error {
-	featureCmd := map[string]func([]string){
-		E_notifications_feature.String(): notifications.Cmd,
-		E_todos_feature.String(): todos.Cmd,
-	}
-
-	if cmd, ok := featureCmd[feat]; !ok { 
-		return errors.New("Invalid command")
-	} else {
-		cmd(args)
-	}
-	return nil
-}

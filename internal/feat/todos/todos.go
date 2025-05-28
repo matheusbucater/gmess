@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/matheusbucater/gmess/internal/db/sqlc"
-	// "github.com/matheusbucater/gmess/internal/feat"
+	"github.com/matheusbucater/gmess/internal/feat"
 	"github.com/matheusbucater/gmess/internal/utils"
 )
 
@@ -152,8 +152,7 @@ func createTodo(msgId int64) error {
 
 	exists, err = qtx.MessageHasFeature(ctx, sqlc.MessageHasFeatureParams{
 		MessageID: msgId,
-		// FeatureName: feat.E_todos_feature.String(), 
-		FeatureName: "todos", // TODO: fix this mess
+		FeatureName: feat.E_todos_feature.String(), 
 	})
 	if err != nil {
 		tx.Rollback()
@@ -163,8 +162,7 @@ func createTodo(msgId int64) error {
 	if exists == 1 {
 		if err := qtx.IncrementMessageFeatureCount(ctx, sqlc.IncrementMessageFeatureCountParams{
 			MessageID: msgId,
-			// FeatureName: feat.E_todos_feature.String(), 
-			FeatureName: "todos", // TODO: fix this mess
+			FeatureName: feat.E_todos_feature.String(), 
 		}); err != nil { return err }
 
 		if err := tx.Commit(); err != nil { return err }
@@ -174,8 +172,7 @@ func createTodo(msgId int64) error {
 
 	if err = qtx.CreateMessageFeature(ctx, sqlc.CreateMessageFeatureParams{
 		MessageID: msgId,
-		// FeatureName: feat.E_todos_feature.String(), 
-		FeatureName: "todos", // TODO: fix this mess
+		FeatureName: feat.E_todos_feature.String(), 
 	}); err != nil {
 		tx.Rollback()
 		return err
@@ -232,8 +229,7 @@ func deleteTodo(todId int64) error {
 	msgId, err := queries.DeleteTodoByIdReturningMsgId(ctx, todId)
 	if err = queries.DecrementMessageFeatureCount(ctx, sqlc.DecrementMessageFeatureCountParams{
 		MessageID: msgId,
-		// FeatureName: feat.E_todos_feature.String(), 
-		FeatureName: "todos", // TODO: fix this mess
+		FeatureName: feat.E_todos_feature.String(), 
 	}); err != nil { return err }
 
 	if err = queries.DeleteTodoById(ctx, todId); err != nil { return err }
