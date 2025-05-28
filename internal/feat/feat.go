@@ -2,11 +2,14 @@ package feat
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/matheusbucater/gmess/internal/db/sqlc"
+	"github.com/matheusbucater/gmess/internal/feat/notifications"
+	"github.com/matheusbucater/gmess/internal/feat/todos"
 	"github.com/matheusbucater/gmess/internal/utils"
 )
 
@@ -25,7 +28,7 @@ func (fe FeatureEnum) String() string {
 	return featureName[fe]
 }
 
-func FeatureExists(feat FeatureEnum) (bool, error) {
+func FeatureExists(feat string) (bool, error) {
 	ctx := context.Background()
 	db, err := utils.DbConnect(ctx)
 	if err != nil {
@@ -33,7 +36,7 @@ func FeatureExists(feat FeatureEnum) (bool, error) {
 	}
 	queries := sqlc.New(db)
 
-	exists, err := queries.FeatureExists(ctx, feat.String())
+	exists, err := queries.FeatureExists(ctx, feat)
 	return exists == 1, nil
 }
 
@@ -68,5 +71,19 @@ func ShowFeatures() error {
 		fmt.Printf("%s\n", strings.ToLower(feat.Name))
 	}
 	
+	return nil
+}
+
+func HandleCmd(feat string, args []string) error {
+	featureCmd := map[string]func([]string){
+		E_notifications_feature.String(): notifications.Cmd,
+		E_todos_feature.String(): todos.Cmd,
+	}
+
+	if cmd, ok := featureCmd[feat]; !ok { 
+		return errors.New("Invalid command")
+	} else {
+		cmd(args)
+	}
 	return nil
 }

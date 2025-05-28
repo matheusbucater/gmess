@@ -55,6 +55,38 @@ func (q *Queries) DeleteTodoByMessageId(ctx context.Context, messageID int64) er
 	return err
 }
 
+const getTodoAndMessageByTodoId = `-- name: GetTodoAndMessageByTodoId :one
+SELECT 
+    todos.id, todos.message_id, todos.status, todos.created_at, todos.updated_at,
+    messages.id, messages.text, messages.created_at, messages.updated_at
+FROM todos
+INNER JOIN messages ON todos.message_id = messages.id
+WHERE todos.id = ? 
+GROUP BY todos.id
+`
+
+type GetTodoAndMessageByTodoIdRow struct {
+	Todo    Todo
+	Message Message
+}
+
+func (q *Queries) GetTodoAndMessageByTodoId(ctx context.Context, id int64) (GetTodoAndMessageByTodoIdRow, error) {
+	row := q.db.QueryRowContext(ctx, getTodoAndMessageByTodoId, id)
+	var i GetTodoAndMessageByTodoIdRow
+	err := row.Scan(
+		&i.Todo.ID,
+		&i.Todo.MessageID,
+		&i.Todo.Status,
+		&i.Todo.CreatedAt,
+		&i.Todo.UpdatedAt,
+		&i.Message.ID,
+		&i.Message.Text,
+		&i.Message.CreatedAt,
+		&i.Message.UpdatedAt,
+	)
+	return i, err
+}
+
 const getTodoById = `-- name: GetTodoById :one
 SELECT id, message_id, status, created_at, updated_at FROM todos WHERE id = ?
 `

@@ -22,6 +22,15 @@ SELECT * FROM todos ORDER BY status DESC;
 -- name: GetTodoById :one
 SELECT * FROM todos WHERE id = ?;
 
+-- name: GetTodoAndMessageByTodoId :one
+SELECT 
+    sqlc.embed(todos),
+    sqlc.embed(messages)
+FROM todos
+INNER JOIN messages ON todos.message_id = messages.id
+WHERE todos.id = ? 
+GROUP BY todos.id;
+
 -- name: GetTodoByMessageId :one
 SELECT * FROM todos WHERE message_id = ?;
 

@@ -51,6 +51,38 @@ func (q *Queries) DeleteNotificationByIdReturningMsgId(ctx context.Context, id i
 	return message_id, err
 }
 
+const getNotificationAndMessageById = `-- name: GetNotificationAndMessageById :one
+SELECT 
+    notifications.id, notifications.message_id, notifications.type, notifications.created_at, notifications.updated_at,
+    messages.id, messages.text, messages.created_at, messages.updated_at
+FROM notifications
+INNER JOIN messages ON messages.id = notifications.message_id
+WHERE notifications.id = ? 
+GROUP BY notifications.id
+`
+
+type GetNotificationAndMessageByIdRow struct {
+	Notification Notification
+	Message      Message
+}
+
+func (q *Queries) GetNotificationAndMessageById(ctx context.Context, id int64) (GetNotificationAndMessageByIdRow, error) {
+	row := q.db.QueryRowContext(ctx, getNotificationAndMessageById, id)
+	var i GetNotificationAndMessageByIdRow
+	err := row.Scan(
+		&i.Notification.ID,
+		&i.Notification.MessageID,
+		&i.Notification.Type,
+		&i.Notification.CreatedAt,
+		&i.Notification.UpdatedAt,
+		&i.Message.ID,
+		&i.Message.Text,
+		&i.Message.CreatedAt,
+		&i.Message.UpdatedAt,
+	)
+	return i, err
+}
+
 const getNotificationById = `-- name: GetNotificationById :one
 SELECT id, message_id, type, created_at, updated_at FROM notifications WHERE id = ?
 `

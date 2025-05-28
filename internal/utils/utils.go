@@ -6,10 +6,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"time"
+	"os"
 	"slices"
 	"strings"
-	"os"
+	"time"
 )
 
 var ddl string

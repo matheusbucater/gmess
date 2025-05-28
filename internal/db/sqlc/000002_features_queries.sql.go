@@ -7,6 +7,7 @@ package sqlc
 
 import (
 	"context"
+	"time"
 )
 
 const createMessageFeature = `-- name: CreateMessageFeature :exec
@@ -108,6 +109,50 @@ func (q *Queries) GetFeaturesByMessageId(ctx context.Context, messageID int64) (
 		return nil, err
 	}
 	return items, nil
+}
+
+const getMessageAndFeatures = `-- name: GetMessageAndFeatures :one
+SELECT 
+  messages.id, messages.text, messages.created_at, messages.updated_at,
+  GROUP_CONCAT(messages_features.feature_name, ', ') AS features
+FROM messages
+INNER JOIN messages_features ON messages_features.message_id = messages.id
+WHERE messages.id = ? AND messages_features.count > 0
+GROUP BY messages.id
+`
+
+type GetMessageAndFeaturesRow struct {
+	ID        int64
+	Text      string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	Features  string
+}
+
+func (q *Queries) GetMessageAndFeatures(ctx context.Context, id int64) (GetMessageAndFeaturesRow, error) {
+	row := q.db.QueryRowContext(ctx, getMessageAndFeatures, id)
+	var i GetMessageAndFeaturesRow
+	err := row.Scan(
+		&i.ID,
+		&i.Text,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Features,
+	)
+	return i, err
+}
+
+const getPrettyFeaturesByMessageId = `-- name: GetPrettyFeaturesByMessageId :one
+SELECT GROUP_CONCAT(SUBSTR(feature_name, 1, 3), ', ')
+FROM messages_features 
+WHERE message_id = ? AND count > 0
+`
+
+func (q *Queries) GetPrettyFeaturesByMessageId(ctx context.Context, messageID int64) (string, error) {
+	row := q.db.QueryRowContext(ctx, getPrettyFeaturesByMessageId, messageID)
+	var group_concat string
+	err := row.Scan(&group_concat)
+	return group_concat, err
 }
 
 const incrementMessageFeatureCount = `-- name: IncrementMessageFeatureCount :exec
