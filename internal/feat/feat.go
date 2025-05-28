@@ -14,11 +14,13 @@ type FeatureEnum int
 const (
 	E_notifications_feature FeatureEnum = iota
 	E_todos_feature 
+	E_lists_feature 
 	E_feature_not_available
 )
 var featureName = map[FeatureEnum]string{
 	E_notifications_feature: "notifications",
 	E_todos_feature: "todos",
+	E_lists_feature: "todos",
 	E_feature_not_available: "not_available",
 }
 func (fe FeatureEnum) String() string {

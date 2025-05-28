@@ -13,6 +13,7 @@ import (
 
 	"github.com/matheusbucater/gmess/internal/db/sqlc"
 	"github.com/matheusbucater/gmess/internal/feat"
+	"github.com/matheusbucater/gmess/internal/feat/lists"
 	"github.com/matheusbucater/gmess/internal/feat/notifications"
 	"github.com/matheusbucater/gmess/internal/feat/todos"
 	"github.com/matheusbucater/gmess/internal/utils"
@@ -261,7 +262,7 @@ func main() {
 		}
 		if !exists {
 			fmt.Printf("feature \"%s\" not available.\n", os.Args[1])
-			flag.Usage()
+			flag.Usage() // TODO: make a proper default usage
 			os.Exit(1)
 		}
 
@@ -270,6 +271,8 @@ func main() {
 			notifications.Cmd(os.Args[2:])
 		case feat.E_todos_feature.String():
 			todos.Cmd(os.Args[2:])
+		case feat.E_todos_feature.String():
+			lists.Cmd(os.Args[2:])
 		default:
 			fmt.Println("Invalid command")
 			os.Exit(1)
