@@ -1,4 +1,4 @@
-# gry - go remind yourself
+# gmess - go message
 
 A simple app with a simple idea written in a simple language.
 
