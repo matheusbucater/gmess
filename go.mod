@@ -1,4 +1,4 @@
-module github.com/matheusbucater/gry
+module github.com/matheusbucater/gmess
 
 go 1.24.3
 
